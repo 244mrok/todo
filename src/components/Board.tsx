@@ -136,8 +136,10 @@ export default function Board() {
   const [editingListTitle, setEditingListTitle] = useState("");
   const [showLabelPicker, setShowLabelPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [editDesc, setEditDesc] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
+  const [viewMode, setViewMode] = useState<"board" | "gantt">("board");
   const [editingProjectName, setEditingProjectName] = useState(false);
   const [projectNameDraft, setProjectNameDraft] = useState("");
 
@@ -191,6 +193,7 @@ export default function Board() {
       title: addingCardTitle.trim(),
       description: "",
       labels: [],
+      startDate: "",
       dueDate: "",
       completed: false,
       completedAt: "",
@@ -446,6 +449,29 @@ export default function Board() {
               </div>
             )}
           </div>
+          <div className="view-toggle">
+            <button
+              className={`view-toggle-btn ${viewMode === "board" ? "view-toggle-btn-active" : ""}`}
+              onClick={() => setViewMode("board")}
+              title="Board view"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="3" y="3" width="7" height="18" rx="1.5" />
+                <rect x="14" y="3" width="7" height="12" rx="1.5" />
+              </svg>
+              Board
+            </button>
+            <button
+              className={`view-toggle-btn ${viewMode === "gantt" ? "view-toggle-btn-active" : ""}`}
+              onClick={() => setViewMode("gantt")}
+              title="Timeline view"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" d="M4 7h8M8 12h10M6 17h6" />
+              </svg>
+              Timeline
+            </button>
+          </div>
           <button
             className={`header-toggle-btn ${hideCompleted ? "header-toggle-active" : ""}`}
             onClick={() => setHideCompleted(prev => !prev)}
@@ -465,7 +491,167 @@ export default function Board() {
         </div>
       </header>
 
-      {/* Board */}
+      {/* Board / Gantt */}
+      {viewMode === "gantt" ? (() => {
+        // Collect all cards with date range, grouped by list
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStr = today.toISOString().split("T")[0];
+
+        type GanttCard = Card & { listTitle: string };
+        const ganttLists: { listId: string; listTitle: string; cards: GanttCard[] }[] = [];
+        let minDate: Date | null = null;
+        let maxDate: Date | null = null;
+
+        for (const list of board.lists) {
+          const cards: GanttCard[] = [];
+          for (const cardId of list.cardIds) {
+            const card = board.cards[cardId];
+            if (!card) continue;
+            if (hideCompleted && card.completed) continue;
+            // Need at least a start date or due date to show
+            const start = card.startDate || card.dueDate;
+            const end = card.dueDate || card.startDate;
+            if (!start && !end) continue;
+            cards.push({ ...card, listTitle: list.title });
+            const sd = new Date(start);
+            const ed = new Date(end);
+            if (!minDate || sd < minDate) minDate = sd;
+            if (!maxDate || ed > maxDate) maxDate = ed;
+          }
+          if (cards.length > 0) {
+            ganttLists.push({ listId: list.id, listTitle: list.title, cards });
+          }
+        }
+
+        // Add padding around date range
+        if (!minDate || !maxDate) {
+          // No cards with dates — show empty state
+          return (
+            <div className="gantt-empty">
+              <p>No cards with dates to display.</p>
+              <p>Add a start date and due date to cards to see them on the timeline.</p>
+            </div>
+          );
+        }
+
+        const rangeStart = new Date(minDate);
+        rangeStart.setDate(rangeStart.getDate() - 3);
+        const rangeEnd = new Date(maxDate);
+        rangeEnd.setDate(rangeEnd.getDate() + 3);
+
+        // Generate day columns
+        const days: Date[] = [];
+        const cur = new Date(rangeStart);
+        while (cur <= rangeEnd) {
+          days.push(new Date(cur));
+          cur.setDate(cur.getDate() + 1);
+        }
+
+        const dayWidth = 40;
+        const totalWidth = days.length * dayWidth;
+        const labelWidth = 200;
+
+        const getBarLeft = (dateStr: string) => {
+          const d = new Date(dateStr);
+          const diff = Math.round((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24));
+          return diff * dayWidth;
+        };
+
+        const getBarWidth = (startStr: string, endStr: string) => {
+          const s = new Date(startStr);
+          const e = new Date(endStr);
+          const diff = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24));
+          return Math.max((diff + 1) * dayWidth, dayWidth);
+        };
+
+        const todayLeft = getBarLeft(todayStr);
+        const showTodayLine = todayLeft >= 0 && todayLeft <= totalWidth;
+
+        return (
+          <div className="gantt-container">
+            <div className="gantt-scroll">
+              {/* Header row */}
+              <div className="gantt-header-row" style={{ width: labelWidth + totalWidth }}>
+                <div className="gantt-label-col" style={{ width: labelWidth }}>Task</div>
+                <div className="gantt-timeline-header" style={{ width: totalWidth, position: "relative" }}>
+                  {days.map((day, i) => {
+                    const isToday = day.toISOString().split("T")[0] === todayStr;
+                    const isFirstOfMonth = day.getDate() === 1;
+                    return (
+                      <div
+                        key={i}
+                        className={`gantt-day-header ${isToday ? "gantt-day-today" : ""} ${isFirstOfMonth ? "gantt-day-first-of-month" : ""}`}
+                        style={{ width: dayWidth, left: i * dayWidth }}
+                      >
+                        {isFirstOfMonth && (
+                          <span className="gantt-month-label">
+                            {day.toLocaleDateString("en-US", { month: "short" })}
+                          </span>
+                        )}
+                        <span className="gantt-day-num">{day.getDate()}</span>
+                        <span className="gantt-day-name">
+                          {day.toLocaleDateString("en-US", { weekday: "narrow" })}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="gantt-body" style={{ width: labelWidth + totalWidth }}>
+                {showTodayLine && (
+                  <div className="gantt-today-line" style={{ left: labelWidth + todayLeft + dayWidth / 2 }} />
+                )}
+                {ganttLists.map(({ listId, listTitle, cards }) => (
+                  <div key={listId} className="gantt-list-group">
+                    <div className="gantt-list-header" style={{ width: labelWidth + totalWidth }}>
+                      <span>{listTitle}</span>
+                    </div>
+                    {cards.map(card => {
+                      const start = card.startDate || card.dueDate;
+                      const end = card.dueDate || card.startDate;
+                      const barLeft = getBarLeft(start);
+                      const barWidth = getBarWidth(start, end);
+                      const isOverdue = !card.completed && card.dueDate && new Date(card.dueDate) < today;
+                      const barClass = card.completed
+                        ? "gantt-bar-done"
+                        : isOverdue
+                          ? "gantt-bar-overdue"
+                          : "gantt-bar-active";
+
+                      return (
+                        <div key={card.id} className="gantt-row">
+                          <div
+                            className="gantt-row-label"
+                            style={{ width: labelWidth }}
+                            title={card.title}
+                            onClick={() => setEditingCard(board.cards[card.id])}
+                          >
+                            <span className={`gantt-row-checkbox ${card.completed ? "gantt-row-checkbox-done" : ""}`} />
+                            <span className={`gantt-row-title ${card.completed ? "gantt-row-title-done" : ""}`}>
+                              {card.title}
+                            </span>
+                          </div>
+                          <div className="gantt-row-bar-area" style={{ width: totalWidth, position: "relative" }}>
+                            <div
+                              className={`gantt-bar ${barClass}`}
+                              style={{ left: barLeft, width: barWidth }}
+                              onClick={() => setEditingCard(board.cards[card.id])}
+                              title={`${card.title}\n${start} → ${end}`}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })() : (
       <div className="board-canvas">
         <div className="board-lists">
           {board.lists.map((list, idx) => (
@@ -676,14 +862,15 @@ export default function Board() {
           )}
         </div>
       </div>
+      )}
 
       {/* Card detail modal */}
       {editingCard && (() => {
         const parentList = getListForCard(editingCard.id);
         return (
-          <div className="modal-overlay" onClick={() => { setEditingCard(null); setEditDesc(false); setShowLabelPicker(false); setShowDatePicker(false); }}>
+          <div className="modal-overlay" onClick={() => { setEditingCard(null); setEditDesc(false); setShowLabelPicker(false); setShowDatePicker(false); setShowStartDatePicker(false); }}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
-              <button className="modal-close" onClick={() => { setEditingCard(null); setEditDesc(false); setShowLabelPicker(false); setShowDatePicker(false); }}>
+              <button className="modal-close" onClick={() => { setEditingCard(null); setEditDesc(false); setShowLabelPicker(false); setShowDatePicker(false); setShowStartDatePicker(false); }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -736,6 +923,16 @@ export default function Board() {
                           </span>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* Start date */}
+                  {editingCard.startDate && (
+                    <div className="modal-section">
+                      <h4 className="modal-label">Start date</h4>
+                      <span className="modal-due">
+                        {new Date(editingCard.startDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                      </span>
                     </div>
                   )}
 
@@ -846,13 +1043,41 @@ export default function Board() {
                       )}
                     </div>
 
-                    {/* Date */}
+                    {/* Start Date */}
+                    <div style={{ position: "relative" }}>
+                      <button className="sidebar-btn" onClick={() => setShowStartDatePicker(!showStartDatePicker)}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        Start Date
+                      </button>
+                      {showStartDatePicker && (
+                        <div className="date-picker">
+                          <p className="date-picker-title">Start date</p>
+                          <input
+                            type="date"
+                            className="date-picker-input"
+                            value={editingCard.startDate}
+                            onChange={e => updateCard({ ...editingCard, startDate: e.target.value })}
+                            autoFocus
+                          />
+                          <div className="date-picker-actions">
+                            <button className="btn-primary" onClick={() => setShowStartDatePicker(false)}>Save</button>
+                            {editingCard.startDate && (
+                              <button className="btn-text" onClick={() => { updateCard({ ...editingCard, startDate: "" }); setShowStartDatePicker(false); }}>Remove</button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Due Date */}
                     <div style={{ position: "relative" }}>
                       <button className="sidebar-btn" onClick={() => setShowDatePicker(!showDatePicker)}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        Date
+                        Due Date
                       </button>
                       {showDatePicker && (
                         <div className="date-picker">
