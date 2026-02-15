@@ -29,6 +29,8 @@ body {
   background: rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(8px);
   flex-shrink: 0;
+  position: relative;
+  z-index: 50;
 }
 
 .board-header-left {
@@ -42,6 +44,40 @@ body {
   font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.2px;
+}
+
+.project-name {
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
+}
+.project-name:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.project-name-input {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: #172b4d;
+  padding: 4px 8px;
+  border: 2px solid #0079bf;
+  border-radius: 6px;
+  outline: none;
+  background: white;
+  font-family: inherit;
+  min-width: 200px;
+}
+
+.board-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .header-toggle-btn {
@@ -63,6 +99,113 @@ body {
 }
 .header-toggle-active {
   background: rgba(255, 255, 255, 0.35);
+}
+
+/* ===== BOARD PICKER ===== */
+.board-picker {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 6px;
+  width: 260px;
+  background: white;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
+  z-index: 100;
+}
+
+.board-picker-title {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5e6c84;
+  padding: 4px 0 8px;
+  border-bottom: 1px solid #ebecf0;
+  margin-bottom: 6px;
+}
+
+.board-picker-empty {
+  font-size: 13px;
+  color: #8c8c8c;
+  text-align: center;
+  padding: 12px 0;
+}
+
+.board-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.board-picker-item {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #172b4d;
+  cursor: pointer;
+  font-family: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.board-picker-item:hover {
+  background: rgba(9, 30, 66, 0.08);
+}
+.board-picker-item-active {
+  background: #e4f0f6;
+  color: #0079bf;
+}
+
+.board-picker-delete {
+  border: none;
+  background: none;
+  color: #b0b0b0;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.board-picker-row:hover .board-picker-delete {
+  opacity: 1;
+}
+.board-picker-delete:hover {
+  background: #eb5a46;
+  color: white;
+}
+
+.board-picker-new {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #5e6c84;
+  cursor: pointer;
+  font-family: inherit;
+  margin-top: 4px;
+  border-top: 1px solid #ebecf0;
+  padding-top: 10px;
+}
+.board-picker-new:hover {
+  background: rgba(9, 30, 66, 0.08);
+  color: #172b4d;
 }
 
 /* ===== BOARD CANVAS ===== */

@@ -1,14 +1,130 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
-import type { BoardData, Card, List } from "@/types/board";
+import { useState, useCallback, useRef, useEffect } from "react";
+import type { BoardData, Card } from "@/types/board";
 import { LABEL_COLORS } from "@/types/board";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
 
-const INITIAL_BOARD: BoardData = { lists: [], cards: {}, labelNames: {} };
+function newBoardId() {
+  return "board-" + Date.now();
+}
+
+function createEmptyBoard(): BoardData {
+  return { id: newBoardId(), name: "New Project", lists: [], cards: {}, labelNames: {} };
+}
 
 export default function Board() {
-  const [board, setBoard] = useLocalStorage<BoardData>("trello-board-v2", INITIAL_BOARD);
+  const [board, setBoard] = useState<BoardData>(createEmptyBoard);
+  const [loaded, setLoaded] = useState(false);
+  const dirty = useRef(false); // only save when user actually changes something
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [showBoardPicker, setShowBoardPicker] = useState(false);
+  const [savedBoards, setSavedBoards] = useState<{ id: string; name: string }[]>([]);
+
+  // Wrap setBoard to mark dirty
+  const setBoardAndSave = useCallback((updater: BoardData | ((prev: BoardData) => BoardData)) => {
+    dirty.current = true;
+    setBoard(updater);
+  }, []);
+
+  // Load last used board or first available board on mount
+  useEffect(() => {
+    let cancelled = false;
+    const lastId = localStorage.getItem("last-board-id");
+    if (lastId) {
+      fetch(`/api/board/${lastId}`)
+        .then(res => { if (!res.ok) throw new Error(); return res.json(); })
+        .then(data => { if (!cancelled && data) setBoard(data); if (!cancelled) setLoaded(true); })
+        .catch(() => {
+          // last board deleted? try loading list
+          fetch("/api/board").then(r => r.json()).then(list => {
+            if (!cancelled && list?.length > 0) {
+              fetch(`/api/board/${list[0].id}`).then(r => r.json()).then(d => {
+                if (!cancelled && d) { setBoard(d); localStorage.setItem("last-board-id", d.id); }
+                if (!cancelled) setLoaded(true);
+              });
+            } else {
+              if (!cancelled) setLoaded(true);
+            }
+          }).catch(() => { if (!cancelled) setLoaded(true); });
+        });
+    } else {
+      // No last board — check if any exist
+      fetch("/api/board").then(r => r.json()).then(list => {
+        if (!cancelled && list?.length > 0) {
+          fetch(`/api/board/${list[0].id}`).then(r => r.json()).then(d => {
+            if (!cancelled && d) { setBoard(d); localStorage.setItem("last-board-id", d.id); }
+            if (!cancelled) setLoaded(true);
+          });
+        } else {
+          if (!cancelled) setLoaded(true);
+        }
+      }).catch(() => { if (!cancelled) setLoaded(true); });
+    }
+    return () => { cancelled = true; };
+  }, []);
+
+  // Save board to file DB on changes (debounced 500ms), only when dirty
+  useEffect(() => {
+    if (!loaded || !dirty.current) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      dirty.current = false;
+      localStorage.setItem("last-board-id", board.id);
+      fetch(`/api/board/${board.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(board),
+      }).catch(() => {});
+    }, 500);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [board, loaded]);
+
+  const loadBoardList = useCallback(() => {
+    fetch("/api/board")
+      .then(res => res.json())
+      .then(list => setSavedBoards(list || []))
+      .catch(() => {});
+  }, []);
+
+  const loadBoard = useCallback((id: string) => {
+    fetch(`/api/board/${id}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          setBoard(data);
+          localStorage.setItem("last-board-id", id);
+        }
+        setShowBoardPicker(false);
+      })
+      .catch(() => {});
+  }, []);
+
+  const createNewBoard = useCallback(() => {
+    const b = createEmptyBoard();
+    dirty.current = true;
+    setBoard(b);
+    localStorage.setItem("last-board-id", b.id);
+    setShowBoardPicker(false);
+  }, []);
+
+  const deleteBoard = useCallback((id: string) => {
+    if (!confirm("Delete this project? This cannot be undone.")) return;
+    fetch(`/api/board/${id}`, { method: "DELETE" })
+      .then(() => {
+        setSavedBoards(prev => prev.filter(b => b.id !== id));
+        // If deleting the current board, switch to another or create new
+        if (id === board.id) {
+          fetch("/api/board").then(r => r.json()).then(list => {
+            if (list?.length > 0) {
+              loadBoard(list[0].id);
+            } else {
+              createNewBoard();
+            }
+          });
+        }
+      })
+      .catch(() => {});
+  }, [board.id, loadBoard, createNewBoard]);
 
   // UI state
   const [addingListTitle, setAddingListTitle] = useState("");
@@ -22,6 +138,8 @@ export default function Board() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [editDesc, setEditDesc] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
+  const [editingProjectName, setEditingProjectName] = useState(false);
+  const [projectNameDraft, setProjectNameDraft] = useState("");
 
   // Card drag state
   const dragCard = useRef<{ cardId: string; sourceListId: string } | null>(null);
@@ -40,28 +158,28 @@ export default function Board() {
   const addList = useCallback(() => {
     if (!addingListTitle.trim()) return;
     const id = "list-" + Date.now();
-    setBoard(prev => ({
+    setBoardAndSave(prev => ({
       ...prev,
       lists: [...prev.lists, { id, title: addingListTitle.trim(), cardIds: [] }],
     }));
     setAddingListTitle("");
-  }, [addingListTitle, setBoard]);
+  }, [addingListTitle, setBoardAndSave]);
 
   const renameList = useCallback((listId: string, title: string) => {
-    setBoard(prev => ({
+    setBoardAndSave(prev => ({
       ...prev,
       lists: prev.lists.map(l => l.id === listId ? { ...l, title } : l),
     }));
-  }, [setBoard]);
+  }, [setBoardAndSave]);
 
   const deleteList = useCallback((listId: string) => {
-    setBoard(prev => {
+    setBoardAndSave(prev => {
       const list = prev.lists.find(l => l.id === listId);
       const newCards = { ...prev.cards };
       list?.cardIds.forEach(id => delete newCards[id]);
       return { ...prev, lists: prev.lists.filter(l => l.id !== listId), cards: newCards };
     });
-  }, [setBoard]);
+  }, [setBoardAndSave]);
 
   // ===================== CARD ACTIONS =====================
 
@@ -78,21 +196,21 @@ export default function Board() {
       completedAt: "",
       createdAt: new Date().toISOString(),
     };
-    setBoard(prev => ({
+    setBoardAndSave(prev => ({
       ...prev,
       cards: { ...prev.cards, [id]: card },
       lists: prev.lists.map(l => l.id === listId ? { ...l, cardIds: [...l.cardIds, id] } : l),
     }));
     setAddingCardTitle("");
-  }, [addingCardTitle, setBoard]);
+  }, [addingCardTitle, setBoardAndSave]);
 
   const updateCard = useCallback((card: Card) => {
-    setBoard(prev => ({ ...prev, cards: { ...prev.cards, [card.id]: card } }));
+    setBoardAndSave(prev => ({ ...prev, cards: { ...prev.cards, [card.id]: card } }));
     setEditingCard(card);
-  }, [setBoard]);
+  }, [setBoardAndSave]);
 
   const toggleCard = useCallback((cardId: string) => {
-    setBoard(prev => {
+    setBoardAndSave(prev => {
       const card = prev.cards[cardId];
       if (!card) return prev;
       const nowCompleted = !card.completed;
@@ -108,10 +226,10 @@ export default function Board() {
       const nowCompleted = !prev.completed;
       return { ...prev, completed: nowCompleted, completedAt: nowCompleted ? new Date().toISOString() : "" };
     });
-  }, [setBoard]);
+  }, [setBoardAndSave]);
 
   const deleteCard = useCallback((cardId: string) => {
-    setBoard(prev => {
+    setBoardAndSave(prev => {
       const newCards = { ...prev.cards };
       delete newCards[cardId];
       return {
@@ -124,7 +242,7 @@ export default function Board() {
       };
     });
     setEditingCard(null);
-  }, [setBoard]);
+  }, [setBoardAndSave]);
 
   // ===================== DRAG & DROP =====================
 
@@ -149,7 +267,7 @@ export default function Board() {
     const { cardId, sourceListId } = dragCard.current;
     if (sourceListId === targetListId) return;
 
-    setBoard(prev => ({
+    setBoardAndSave(prev => ({
       ...prev,
       lists: prev.lists.map(l => {
         if (l.id === sourceListId) return { ...l, cardIds: l.cardIds.filter(id => id !== cardId) };
@@ -188,7 +306,7 @@ export default function Board() {
     const sourceId = dragListRef.current;
     dragListRef.current = null;
 
-    setBoard(prev => {
+    setBoardAndSave(prev => {
       const sourceIdx = prev.lists.findIndex(l => l.id === sourceId);
       if (sourceIdx === -1 || sourceIdx === targetIdx) return prev;
       const newLists = [...prev.lists];
@@ -208,11 +326,11 @@ export default function Board() {
   // ===================== LABEL ACTIONS =====================
 
   const renameLabel = useCallback((color: string, name: string) => {
-    setBoard(prev => ({
+    setBoardAndSave(prev => ({
       ...prev,
       labelNames: { ...prev.labelNames, [color]: name },
     }));
-  }, [setBoard]);
+  }, [setBoardAndSave]);
 
   const getLabelName = (color: string) => board.labelNames?.[color] || "";
 
@@ -250,12 +368,88 @@ export default function Board() {
             <rect x="3" y="3" width="7" height="18" rx="1.5" />
             <rect x="14" y="3" width="7" height="12" rx="1.5" />
           </svg>
-          <h1>Task Board</h1>
+          {editingProjectName ? (
+            <input
+              className="project-name-input"
+              value={projectNameDraft}
+              onChange={e => setProjectNameDraft(e.target.value)}
+              onBlur={() => {
+                if (projectNameDraft.trim()) setBoardAndSave(prev => ({ ...prev, name: projectNameDraft.trim() }));
+                setEditingProjectName(false);
+              }}
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  if (projectNameDraft.trim()) setBoardAndSave(prev => ({ ...prev, name: projectNameDraft.trim() }));
+                  setEditingProjectName(false);
+                }
+                if (e.key === "Escape") setEditingProjectName(false);
+              }}
+              autoFocus
+            />
+          ) : (
+            <h1
+              className="project-name"
+              onClick={() => { setEditingProjectName(true); setProjectNameDraft(board.name || "Task Board"); }}
+            >
+              {board.name || "Task Board"}
+            </h1>
+          )}
         </div>
-        <button
-          className={`header-toggle-btn ${hideCompleted ? "header-toggle-active" : ""}`}
-          onClick={() => setHideCompleted(prev => !prev)}
-        >
+        <div className="board-header-right">
+          <button className="header-toggle-btn" onClick={createNewBoard}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            New
+          </button>
+          <div style={{ position: "relative" }}>
+            <button
+              className="header-toggle-btn"
+              onClick={() => { setShowBoardPicker(!showBoardPicker); if (!showBoardPicker) loadBoardList(); }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              </svg>
+              Load
+            </button>
+            {showBoardPicker && (
+              <div className="board-picker">
+                <p className="board-picker-title">Saved Projects</p>
+                {savedBoards.length === 0 && (
+                  <p className="board-picker-empty">No saved projects yet</p>
+                )}
+                {savedBoards.map(b => (
+                  <div key={b.id} className="board-picker-row">
+                    <button
+                      className={`board-picker-item ${b.id === board.id ? "board-picker-item-active" : ""}`}
+                      onClick={() => loadBoard(b.id)}
+                    >
+                      {b.name || "Untitled"}
+                    </button>
+                    <button
+                      className="board-picker-delete"
+                      onClick={e => { e.stopPropagation(); deleteBoard(b.id); }}
+                      title="Delete project"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+                <button className="board-picker-new" onClick={createNewBoard}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  New project
+                </button>
+              </div>
+            )}
+          </div>
+          <button
+            className={`header-toggle-btn ${hideCompleted ? "header-toggle-active" : ""}`}
+            onClick={() => setHideCompleted(prev => !prev)}
+          >
           {hideCompleted ? (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M3 3l18 18" />
@@ -267,7 +461,8 @@ export default function Board() {
             </svg>
           )}
           {hideCompleted ? "Show completed" : "Hide completed"}
-        </button>
+          </button>
+        </div>
       </header>
 
       {/* Board */}

@@ -16,6 +16,8 @@ export interface List {
 }
 
 export interface BoardData {
+  id: string;
+  name: string;
   lists: List[];
   cards: Record<string, Card>;
   labelNames: Record<string, string>;
