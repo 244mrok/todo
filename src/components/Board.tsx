@@ -23,9 +23,13 @@ export default function Board() {
   const [editDesc, setEditDesc] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
 
-  // Drag state
+  // Card drag state
   const dragCard = useRef<{ cardId: string; sourceListId: string } | null>(null);
   const [dragOverListId, setDragOverListId] = useState<string | null>(null);
+
+  // List drag state
+  const dragListRef = useRef<string | null>(null);
+  const [dragOverListIdx, setDragOverListIdx] = useState<number | null>(null);
 
   // Refs
   const addListInputRef = useRef<HTMLInputElement>(null);
@@ -161,6 +165,46 @@ export default function Board() {
     setDragOverListId(null);
   };
 
+  // ===================== LIST DRAG & DROP =====================
+
+  const handleListDragStart = (e: React.DragEvent, listId: string) => {
+    dragListRef.current = listId;
+    e.dataTransfer.effectAllowed = "move";
+    // Add a custom type so we can distinguish list drags from card drags
+    e.dataTransfer.setData("text/x-list-id", listId);
+  };
+
+  const handleListDragOver = (e: React.DragEvent, idx: number) => {
+    if (!dragListRef.current) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverListIdx(idx);
+  };
+
+  const handleListDrop = (e: React.DragEvent, targetIdx: number) => {
+    e.preventDefault();
+    setDragOverListIdx(null);
+    if (!dragListRef.current) return;
+    const sourceId = dragListRef.current;
+    dragListRef.current = null;
+
+    setBoard(prev => {
+      const sourceIdx = prev.lists.findIndex(l => l.id === sourceId);
+      if (sourceIdx === -1 || sourceIdx === targetIdx) return prev;
+      const newLists = [...prev.lists];
+      const [moved] = newLists.splice(sourceIdx, 1);
+      // Adjust target index if source was before target
+      const adjustedIdx = sourceIdx < targetIdx ? targetIdx - 1 : targetIdx;
+      newLists.splice(adjustedIdx, 0, moved);
+      return { ...prev, lists: newLists };
+    });
+  };
+
+  const handleListDragEnd = () => {
+    dragListRef.current = null;
+    setDragOverListIdx(null);
+  };
+
   // ===================== LABEL ACTIONS =====================
 
   const renameLabel = useCallback((color: string, name: string) => {
@@ -229,16 +273,33 @@ export default function Board() {
       {/* Board */}
       <div className="board-canvas">
         <div className="board-lists">
-          {board.lists.map(list => (
-            <div
-              key={list.id}
-              className={`list-wrapper ${dragOverListId === list.id ? "list-drag-over" : ""}`}
-              onDragOver={e => handleDragOver(e, list.id)}
-              onDragLeave={handleDragLeave}
-              onDrop={e => handleDrop(e, list.id)}
-            >
-              {/* List header */}
-              <div className="list-header">
+          {board.lists.map((list, idx) => (
+            <div key={list.id} style={{ display: "flex", alignItems: "flex-start" }}>
+              {/* Drop indicator before this list */}
+              <div
+                className={`list-drop-zone ${dragOverListIdx === idx ? "list-drop-zone-active" : ""}`}
+                onDragOver={e => handleListDragOver(e, idx)}
+                onDragLeave={() => setDragOverListIdx(null)}
+                onDrop={e => handleListDrop(e, idx)}
+              />
+              <div
+                className={`list-wrapper ${dragOverListId === list.id ? "list-drag-over" : ""} ${dragListRef.current === list.id ? "list-dragging" : ""}`}
+                onDragOver={e => {
+                  // Only handle card drag-over on the list body
+                  if (!dragListRef.current) handleDragOver(e, list.id);
+                }}
+                onDragLeave={handleDragLeave}
+                onDrop={e => {
+                  if (!dragListRef.current) handleDrop(e, list.id);
+                }}
+              >
+              {/* List header — draggable for list reordering */}
+              <div
+                className="list-header"
+                draggable
+                onDragStart={e => handleListDragStart(e, list.id)}
+                onDragEnd={handleListDragEnd}
+              >
                 {editingListId === list.id ? (
                   <input
                     className="list-title-input"
@@ -373,7 +434,18 @@ export default function Board() {
                 </button>
               )}
             </div>
+            </div>
           ))}
+
+          {/* Drop indicator after last list */}
+          {board.lists.length > 0 && (
+            <div
+              className={`list-drop-zone ${dragOverListIdx === board.lists.length ? "list-drop-zone-active" : ""}`}
+              onDragOver={e => handleListDragOver(e, board.lists.length)}
+              onDragLeave={() => setDragOverListIdx(null)}
+              onDrop={e => handleListDrop(e, board.lists.length)}
+            />
+          )}
 
           {/* Add list */}
           {showAddList ? (
