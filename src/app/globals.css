@@ -1133,12 +1133,11 @@ body {
 }
 
 .gantt-timeline-header {
-  display: flex;
   position: relative;
+  overflow: hidden;
 }
 
 .gantt-day-header {
-  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1146,8 +1145,8 @@ body {
   padding: 4px 0 6px;
   font-size: 11px;
   color: #8c96a5;
-  position: relative;
   border-left: 1px solid #ecedf0;
+  box-sizing: border-box;
 }
 
 .gantt-day-today {
@@ -1198,18 +1197,8 @@ body {
   bottom: 0;
   width: 2px;
   background: #eb5a46;
-  z-index: 10;
+  z-index: 1;
   pointer-events: none;
-}
-.gantt-today-line::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -4px;
-  width: 10px;
-  height: 10px;
-  background: #eb5a46;
-  border-radius: 50%;
 }
 
 /* Gantt list group */
@@ -1237,6 +1226,7 @@ body {
   display: flex;
   border-bottom: 1px solid #f1f2f4;
   height: 40px;
+  flex-shrink: 0;
 }
 .gantt-row:hover {
   background: #f8f9fa;
@@ -1299,14 +1289,65 @@ body {
   position: absolute;
   height: 24px;
   border-radius: 6px;
-  cursor: pointer;
+  cursor: grab;
   transition: transform 0.1s ease, box-shadow 0.1s ease;
   min-width: 8px;
+  display: flex;
+  align-items: stretch;
 }
 .gantt-bar:hover {
   transform: scaleY(1.15);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   z-index: 2;
+}
+
+.gantt-bar-dragging {
+  opacity: 0.85;
+  cursor: grabbing;
+  z-index: 10;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transform: none;
+  transition: none;
+}
+
+/* Resize handles */
+.gantt-bar-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: ew-resize;
+  z-index: 3;
+  border-radius: 6px;
+}
+.gantt-bar-handle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 1px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.gantt-bar:hover .gantt-bar-handle::after {
+  opacity: 1;
+}
+.gantt-bar-handle-left {
+  left: 0;
+  border-radius: 6px 0 0 6px;
+}
+.gantt-bar-handle-left::after {
+  left: 3px;
+}
+.gantt-bar-handle-right {
+  right: 0;
+  border-radius: 0 6px 6px 0;
+}
+.gantt-bar-handle-right::after {
+  right: 3px;
 }
 
 .gantt-bar-active {
@@ -1322,4 +1363,14 @@ body {
 .gantt-bar-overdue {
   background: linear-gradient(135deg, #eb5a46, #cf513d);
   box-shadow: 0 1px 4px rgba(235, 90, 70, 0.35);
+}
+
+/* ===== KEYBOARD FOCUS ===== */
+.list-header.kb-focused {
+  box-shadow: 0 0 0 2px #0079bf;
+  border-radius: 8px;
+}
+
+.card.kb-focused {
+  box-shadow: 0 0 0 2px #0079bf;
 }

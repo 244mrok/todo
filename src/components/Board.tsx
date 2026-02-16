@@ -142,6 +142,7 @@ export default function Board() {
   const [viewMode, setViewMode] = useState<"board" | "gantt">("board");
   const [editingProjectName, setEditingProjectName] = useState(false);
   const [projectNameDraft, setProjectNameDraft] = useState("");
+  const [focusPos, setFocusPos] = useState<{ listIdx: number; cardIdx: number } | null>(null);
 
   // Card drag state
   const dragCard = useRef<{ cardId: string; sourceListId: string } | null>(null);
@@ -151,9 +152,107 @@ export default function Board() {
   const dragListRef = useRef<string | null>(null);
   const [dragOverListIdx, setDragOverListIdx] = useState<number | null>(null);
 
+  // Gantt drag state
+  const ganttDrag = useRef<{
+    cardId: string;
+    mode: "move" | "resize-start" | "resize-end";
+    startX: number;
+    origLeft: number;
+    origWidth: number;
+    origStartDate: string;
+    origDueDate: string;
+    rangeStartTime: number;
+    dayWidth: number;
+    moved: boolean;
+  } | null>(null);
+  const [ganttDragPreview, setGanttDragPreview] = useState<{ cardId: string; left: number; width: number } | null>(null);
+
   // Refs
   const addListInputRef = useRef<HTMLInputElement>(null);
   const addCardInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // ===================== KEYBOARD NAVIGATION =====================
+
+  // Clear focus when switching to gantt or when modal opens via click
+  useEffect(() => {
+    if (viewMode === "gantt") setFocusPos(null);
+  }, [viewMode]);
+
+  useEffect(() => {
+    if (editingCard) setFocusPos(null);
+  }, [editingCard]);
+
+  useEffect(() => {
+    if (!focusPos || viewMode !== "board") return;
+    const selector = focusPos.cardIdx === -1
+      ? `[data-list-idx="${focusPos.listIdx}"] .list-header`
+      : `[data-list-idx="${focusPos.listIdx}"] [data-card-idx="${focusPos.cardIdx}"]`;
+    const el = document.querySelector(selector);
+    if (el) (el as HTMLElement).scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [focusPos, viewMode]);
+
+  useEffect(() => {
+    if (viewMode !== "board") return;
+    const isModalOpen = !!editingCard || !!editingListId || !!addingCardListId || !!editingProjectName || showAddList;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isModalOpen) return;
+
+      if (e.key === "Tab") {
+        e.preventDefault();
+        setFocusPos(prev => {
+          const listCount = board.lists.length;
+          if (listCount === 0) return null;
+          if (!prev) return { listIdx: 0, cardIdx: -1 };
+          const dir = e.shiftKey ? -1 : 1;
+          const newListIdx = Math.max(0, Math.min(listCount - 1, prev.listIdx + dir));
+          // Clamp cardIdx to valid range for new list
+          const newList = board.lists[newListIdx];
+          const visibleCount = newList ? getVisibleCardIds(newList.cardIds).length : 0;
+          const newCardIdx = prev.cardIdx === -1 ? -1 : Math.min(prev.cardIdx, visibleCount - 1);
+          return { listIdx: newListIdx, cardIdx: Math.max(-1, newCardIdx) };
+        });
+        return;
+      }
+
+      if (e.key === "Enter") {
+        e.preventDefault();
+        setFocusPos(prev => {
+          const listCount = board.lists.length;
+          if (listCount === 0) return null;
+          if (!prev) return { listIdx: 0, cardIdx: -1 };
+          const list = board.lists[prev.listIdx];
+          if (!list) return prev;
+          const visibleCards = getVisibleCardIds(list.cardIds);
+          if (prev.cardIdx === -1) {
+            // Move from list title to first card
+            return visibleCards.length > 0 ? { ...prev, cardIdx: 0 } : prev;
+          }
+          if (prev.cardIdx < visibleCards.length - 1) {
+            // Move to next card
+            return { ...prev, cardIdx: prev.cardIdx + 1 };
+          }
+          // At last card — open modal
+          const cardId = visibleCards[prev.cardIdx];
+          const card = cardId ? board.cards[cardId] : null;
+          if (card) {
+            // Use setTimeout to avoid state conflict with setFocusPos
+            setTimeout(() => setEditingCard(card), 0);
+          }
+          return prev;
+        });
+        return;
+      }
+
+      if (e.key === "Escape") {
+        setFocusPos(null);
+        return;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [viewMode, editingCard, editingListId, addingCardListId, editingProjectName, showAddList, board.lists, board.cards, hideCompleted]);
 
   // ===================== LIST ACTIONS =====================
 
@@ -326,6 +425,123 @@ export default function Board() {
     setDragOverListIdx(null);
   };
 
+  // ===================== GANTT DRAG & DROP =====================
+
+  const handleGanttMouseDown = useCallback((
+    e: React.MouseEvent,
+    cardId: string,
+    mode: "move" | "resize-start" | "resize-end",
+    barLeft: number,
+    barWidth: number,
+    startDate: string,
+    dueDate: string,
+    rangeStartTime: number,
+    dayWidth: number,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    ganttDrag.current = {
+      cardId, mode, startX: e.clientX,
+      origLeft: barLeft, origWidth: barWidth,
+      origStartDate: startDate, origDueDate: dueDate,
+      rangeStartTime, dayWidth, moved: false,
+    };
+    setGanttDragPreview({ cardId, left: barLeft, width: barWidth });
+
+    const onMouseMove = (ev: MouseEvent) => {
+      const drag = ganttDrag.current;
+      if (!drag) return;
+      const dx = ev.clientX - drag.startX;
+      if (Math.abs(dx) > 3) drag.moved = true;
+      const minWidth = drag.dayWidth;
+
+      if (drag.mode === "move") {
+        setGanttDragPreview({ cardId: drag.cardId, left: drag.origLeft + dx, width: drag.origWidth });
+      } else if (drag.mode === "resize-start") {
+        const newLeft = drag.origLeft + dx;
+        const newWidth = drag.origWidth - dx;
+        if (newWidth >= minWidth) {
+          setGanttDragPreview({ cardId: drag.cardId, left: newLeft, width: newWidth });
+        }
+      } else if (drag.mode === "resize-end") {
+        const newWidth = drag.origWidth + dx;
+        if (newWidth >= minWidth) {
+          setGanttDragPreview({ cardId: drag.cardId, left: drag.origLeft, width: newWidth });
+        }
+      }
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      const drag = ganttDrag.current;
+      if (!drag || !drag.moved) {
+        ganttDrag.current = null;
+        setGanttDragPreview(null);
+        return;
+      }
+
+      // Use setGanttDragPreview callback to read final preview values synchronously
+      ganttDrag.current = null;
+      setGanttDragPreview(prev => {
+        if (!prev || prev.cardId !== drag.cardId) return null;
+
+        const pixelToDate = (px: number): string => {
+          const dayOffset = Math.round(px / drag.dayWidth);
+          const d = new Date(drag.rangeStartTime);
+          d.setDate(d.getDate() + dayOffset);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const dd = String(d.getDate()).padStart(2, "0");
+          return `${y}-${m}-${dd}`;
+        };
+
+        const newStartDate = pixelToDate(prev.left);
+        const endDayOffset = Math.round((prev.left + prev.width) / drag.dayWidth) - 1;
+        const endD = new Date(drag.rangeStartTime);
+        endD.setDate(endD.getDate() + endDayOffset);
+        const ey = endD.getFullYear();
+        const em = String(endD.getMonth() + 1).padStart(2, "0");
+        const edd = String(endD.getDate()).padStart(2, "0");
+        const newDueDate = `${ey}-${em}-${edd}`;
+
+        // Apply update via setBoardAndSave
+        setBoardAndSave(board => {
+          const card = board.cards[drag.cardId];
+          if (!card) return board;
+          const updatedCard = { ...card };
+          if (drag.mode === "move") {
+            updatedCard.startDate = card.startDate ? newStartDate : "";
+            updatedCard.dueDate = card.dueDate ? newDueDate : "";
+            // If card only had one date, set both
+            if (!card.startDate && card.dueDate) {
+              updatedCard.dueDate = newStartDate; // single-day card moved
+            }
+            if (card.startDate && !card.dueDate) {
+              updatedCard.startDate = newStartDate;
+            }
+            if (card.startDate && card.dueDate) {
+              updatedCard.startDate = newStartDate;
+              updatedCard.dueDate = newDueDate;
+            }
+          } else if (drag.mode === "resize-start") {
+            updatedCard.startDate = newStartDate;
+            if (!card.startDate) updatedCard.startDate = newStartDate;
+          } else if (drag.mode === "resize-end") {
+            updatedCard.dueDate = newDueDate;
+            if (!card.dueDate) updatedCard.dueDate = newDueDate;
+          }
+          return { ...board, cards: { ...board.cards, [drag.cardId]: updatedCard } };
+        });
+
+        return null; // clear preview
+      });
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }, [setBoardAndSave]);
+
   // ===================== LABEL ACTIONS =====================
 
   const renameLabel = useCallback((color: string, name: string) => {
@@ -493,10 +709,22 @@ export default function Board() {
 
       {/* Board / Gantt */}
       {viewMode === "gantt" ? (() => {
+        // Parse "YYYY-MM-DD" as local midnight (avoids UTC offset issues)
+        const parseLocal = (s: string) => {
+          const [y, m, d] = s.split("-").map(Number);
+          return new Date(y, m - 1, d);
+        };
+        const formatLocal = (d: Date) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const day = String(d.getDate()).padStart(2, "0");
+          return `${y}-${m}-${day}`;
+        };
+
         // Collect all cards with date range, grouped by list
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const todayStr = today.toISOString().split("T")[0];
+        const todayStr = formatLocal(today);
 
         type GanttCard = Card & { listTitle: string };
         const ganttLists: { listId: string; listTitle: string; cards: GanttCard[] }[] = [];
@@ -514,8 +742,8 @@ export default function Board() {
             const end = card.dueDate || card.startDate;
             if (!start && !end) continue;
             cards.push({ ...card, listTitle: list.title });
-            const sd = new Date(start);
-            const ed = new Date(end);
+            const sd = parseLocal(start);
+            const ed = parseLocal(end);
             if (!minDate || sd < minDate) minDate = sd;
             if (!maxDate || ed > maxDate) maxDate = ed;
           }
@@ -540,6 +768,14 @@ export default function Board() {
         const rangeEnd = new Date(maxDate);
         rangeEnd.setDate(rangeEnd.getDate() + 3);
 
+        // Enforce minimum 30-day range
+        const rangeDays = Math.round((rangeEnd.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24));
+        if (rangeDays < 30) {
+          const pad = Math.ceil((30 - rangeDays) / 2);
+          rangeStart.setDate(rangeStart.getDate() - pad);
+          rangeEnd.setDate(rangeEnd.getDate() + (30 - rangeDays - pad));
+        }
+
         // Generate day columns
         const days: Date[] = [];
         const cur = new Date(rangeStart);
@@ -552,37 +788,41 @@ export default function Board() {
         const totalWidth = days.length * dayWidth;
         const labelWidth = 200;
 
+        // Day difference using local dates (no timezone drift)
+        const dayDiff = (a: Date, b: Date) =>
+          Math.round((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
+
         const getBarLeft = (dateStr: string) => {
-          const d = new Date(dateStr);
-          const diff = Math.round((d.getTime() - rangeStart.getTime()) / (1000 * 60 * 60 * 24));
-          return diff * dayWidth;
+          return dayDiff(parseLocal(dateStr), rangeStart) * dayWidth;
         };
 
         const getBarWidth = (startStr: string, endStr: string) => {
-          const s = new Date(startStr);
-          const e = new Date(endStr);
-          const diff = Math.round((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24));
+          const diff = dayDiff(parseLocal(endStr), parseLocal(startStr));
           return Math.max((diff + 1) * dayWidth, dayWidth);
         };
 
-        const todayLeft = getBarLeft(todayStr);
+        const todayLeft = dayDiff(today, rangeStart) * dayWidth;
         const showTodayLine = todayLeft >= 0 && todayLeft <= totalWidth;
+
+        // Background grid CSS (repeating vertical lines every dayWidth)
+        const gridBg = `repeating-linear-gradient(to right, #ecedf0 0px, #ecedf0 1px, transparent 1px, transparent ${dayWidth}px)`;
+        const todayLineLeft = todayLeft + dayWidth / 2;
 
         return (
           <div className="gantt-container">
             <div className="gantt-scroll">
-              {/* Header row */}
+              {/* Header row — use absolute positioning for day cells (same as bars) */}
               <div className="gantt-header-row" style={{ width: labelWidth + totalWidth }}>
-                <div className="gantt-label-col" style={{ width: labelWidth }}>Task</div>
-                <div className="gantt-timeline-header" style={{ width: totalWidth, position: "relative" }}>
+                <div className="gantt-label-col" style={{ width: labelWidth, minWidth: labelWidth }}>Task</div>
+                <div className="gantt-timeline-header" style={{ width: totalWidth, minWidth: totalWidth, position: "relative", height: 48 }}>
                   {days.map((day, i) => {
-                    const isToday = day.toISOString().split("T")[0] === todayStr;
+                    const isToday = formatLocal(day) === todayStr;
                     const isFirstOfMonth = day.getDate() === 1;
                     return (
                       <div
                         key={i}
                         className={`gantt-day-header ${isToday ? "gantt-day-today" : ""} ${isFirstOfMonth ? "gantt-day-first-of-month" : ""}`}
-                        style={{ width: dayWidth, left: i * dayWidth }}
+                        style={{ position: "absolute", width: dayWidth, left: i * dayWidth, top: 0, bottom: 0 }}
                       >
                         {isFirstOfMonth && (
                           <span className="gantt-month-label">
@@ -601,9 +841,6 @@ export default function Board() {
 
               {/* Body */}
               <div className="gantt-body" style={{ width: labelWidth + totalWidth }}>
-                {showTodayLine && (
-                  <div className="gantt-today-line" style={{ left: labelWidth + todayLeft + dayWidth / 2 }} />
-                )}
                 {ganttLists.map(({ listId, listTitle, cards }) => (
                   <div key={listId} className="gantt-list-group">
                     <div className="gantt-list-header" style={{ width: labelWidth + totalWidth }}>
@@ -612,20 +849,24 @@ export default function Board() {
                     {cards.map(card => {
                       const start = card.startDate || card.dueDate;
                       const end = card.dueDate || card.startDate;
-                      const barLeft = getBarLeft(start);
-                      const barWidth = getBarWidth(start, end);
+                      const calcLeft = getBarLeft(start);
+                      const calcWidth = getBarWidth(start, end);
+                      const isDragging = ganttDragPreview?.cardId === card.id;
+                      const barLeft = isDragging ? ganttDragPreview.left : calcLeft;
+                      const barWidth = isDragging ? ganttDragPreview.width : calcWidth;
                       const isOverdue = !card.completed && card.dueDate && new Date(card.dueDate) < today;
                       const barClass = card.completed
                         ? "gantt-bar-done"
                         : isOverdue
                           ? "gantt-bar-overdue"
                           : "gantt-bar-active";
+                      const rangeStartTime = rangeStart.getTime();
 
                       return (
-                        <div key={card.id} className="gantt-row">
+                        <div key={card.id} className="gantt-row" style={{ width: labelWidth + totalWidth }}>
                           <div
                             className="gantt-row-label"
-                            style={{ width: labelWidth }}
+                            style={{ width: labelWidth, minWidth: labelWidth }}
                             title={card.title}
                             onClick={() => setEditingCard(board.cards[card.id])}
                           >
@@ -634,13 +875,34 @@ export default function Board() {
                               {card.title}
                             </span>
                           </div>
-                          <div className="gantt-row-bar-area" style={{ width: totalWidth, position: "relative" }}>
+                          <div
+                            className="gantt-row-bar-area"
+                            style={{
+                              width: totalWidth, minWidth: totalWidth,
+                              position: "relative",
+                              backgroundImage: gridBg, backgroundSize: `${totalWidth}px 100%`,
+                            }}
+                          >
+                            {/* Today line inside bar area */}
+                            {showTodayLine && (
+                              <div className="gantt-today-line" style={{ left: todayLineLeft }} />
+                            )}
                             <div
-                              className={`gantt-bar ${barClass}`}
+                              className={`gantt-bar ${barClass} ${isDragging ? "gantt-bar-dragging" : ""}`}
                               style={{ left: barLeft, width: barWidth }}
-                              onClick={() => setEditingCard(board.cards[card.id])}
+                              onClick={() => { if (!ganttDrag.current?.moved) setEditingCard(board.cards[card.id]); }}
                               title={`${card.title}\n${start} → ${end}`}
-                            />
+                              onMouseDown={e => handleGanttMouseDown(e, card.id, "move", calcLeft, calcWidth, start, end, rangeStartTime, dayWidth)}
+                            >
+                              <div
+                                className="gantt-bar-handle gantt-bar-handle-left"
+                                onMouseDown={e => { e.stopPropagation(); handleGanttMouseDown(e, card.id, "resize-start", calcLeft, calcWidth, start, end, rangeStartTime, dayWidth); }}
+                              />
+                              <div
+                                className="gantt-bar-handle gantt-bar-handle-right"
+                                onMouseDown={e => { e.stopPropagation(); handleGanttMouseDown(e, card.id, "resize-end", calcLeft, calcWidth, start, end, rangeStartTime, dayWidth); }}
+                              />
+                            </div>
                           </div>
                         </div>
                       );
@@ -654,7 +916,10 @@ export default function Board() {
       })() : (
       <div className="board-canvas">
         <div className="board-lists">
-          {board.lists.map((list, idx) => (
+          {board.lists.map((list, idx) => {
+            const visibleCards = getVisibleCardIds(list.cardIds);
+            const isListFocused = focusPos?.listIdx === idx && focusPos?.cardIdx === -1;
+            return (
             <div key={list.id} style={{ display: "flex", alignItems: "flex-start" }}>
               {/* Drop indicator before this list */}
               <div
@@ -664,6 +929,7 @@ export default function Board() {
                 onDrop={e => handleListDrop(e, idx)}
               />
               <div
+                data-list-idx={idx}
                 className={`list-wrapper ${dragOverListId === list.id ? "list-drag-over" : ""} ${dragListRef.current === list.id ? "list-dragging" : ""}`}
                 onDragOver={e => {
                   // Only handle card drag-over on the list body
@@ -676,7 +942,7 @@ export default function Board() {
               >
               {/* List header — draggable for list reordering */}
               <div
-                className="list-header"
+                className={`list-header ${isListFocused ? "kb-focused" : ""}`}
                 draggable
                 onDragStart={e => handleListDragStart(e, list.id)}
                 onDragEnd={handleListDragEnd}
@@ -720,14 +986,16 @@ export default function Board() {
 
               {/* Cards */}
               <div className="list-cards">
-                {getVisibleCardIds(list.cardIds).map(cardId => {
+                {visibleCards.map((cardId, cardIdx) => {
                   const card = board.cards[cardId];
                   if (!card) return null;
                   const isOverdue = !card.completed && card.dueDate && new Date(card.dueDate) < new Date(new Date().toDateString());
+                  const isCardFocused = focusPos?.listIdx === idx && focusPos?.cardIdx === cardIdx;
                   return (
                     <div
                       key={card.id}
-                      className={`card ${card.completed ? "card-completed" : ""} ${isOverdue ? "card-overdue" : ""}`}
+                      data-card-idx={cardIdx}
+                      className={`card ${card.completed ? "card-completed" : ""} ${isOverdue ? "card-overdue" : ""} ${isCardFocused ? "kb-focused" : ""}`}
                       draggable
                       onDragStart={() => handleDragStart(card.id, list.id)}
                       onDragEnd={handleDragEnd}
@@ -816,7 +1084,8 @@ export default function Board() {
               )}
             </div>
             </div>
-          ))}
+            );
+          })}
 
           {/* Drop indicator after last list */}
           {board.lists.length > 0 && (
