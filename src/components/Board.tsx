@@ -143,6 +143,7 @@ export default function Board() {
   const [editingProjectName, setEditingProjectName] = useState(false);
   const [projectNameDraft, setProjectNameDraft] = useState("");
   const [focusPos, setFocusPos] = useState<{ listIdx: number; cardIdx: number } | null>(null);
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
 
   // Card drag state
   const dragCard = useRef<{ cardId: string; sourceListId: string } | null>(null);
@@ -184,75 +185,18 @@ export default function Board() {
 
   useEffect(() => {
     if (!focusPos || viewMode !== "board") return;
+    // focusPos.listIdx === board.lists.length means "Add another list" button
+    if (focusPos.listIdx >= board.lists.length) {
+      const el = document.querySelector(".add-list-btn, .add-list-form");
+      if (el) (el as HTMLElement).scrollIntoView({ block: "nearest", inline: "nearest" });
+      return;
+    }
     const selector = focusPos.cardIdx === -1
       ? `[data-list-idx="${focusPos.listIdx}"] .list-header`
       : `[data-list-idx="${focusPos.listIdx}"] [data-card-idx="${focusPos.cardIdx}"]`;
     const el = document.querySelector(selector);
     if (el) (el as HTMLElement).scrollIntoView({ block: "nearest", inline: "nearest" });
-  }, [focusPos, viewMode]);
-
-  useEffect(() => {
-    if (viewMode !== "board") return;
-    const isModalOpen = !!editingCard || !!editingListId || !!addingCardListId || !!editingProjectName || showAddList;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isModalOpen) return;
-
-      if (e.key === "Tab") {
-        e.preventDefault();
-        setFocusPos(prev => {
-          const listCount = board.lists.length;
-          if (listCount === 0) return null;
-          if (!prev) return { listIdx: 0, cardIdx: -1 };
-          const dir = e.shiftKey ? -1 : 1;
-          const newListIdx = Math.max(0, Math.min(listCount - 1, prev.listIdx + dir));
-          // Clamp cardIdx to valid range for new list
-          const newList = board.lists[newListIdx];
-          const visibleCount = newList ? getVisibleCardIds(newList.cardIds).length : 0;
-          const newCardIdx = prev.cardIdx === -1 ? -1 : Math.min(prev.cardIdx, visibleCount - 1);
-          return { listIdx: newListIdx, cardIdx: Math.max(-1, newCardIdx) };
-        });
-        return;
-      }
-
-      if (e.key === "Enter") {
-        e.preventDefault();
-        setFocusPos(prev => {
-          const listCount = board.lists.length;
-          if (listCount === 0) return null;
-          if (!prev) return { listIdx: 0, cardIdx: -1 };
-          const list = board.lists[prev.listIdx];
-          if (!list) return prev;
-          const visibleCards = getVisibleCardIds(list.cardIds);
-          if (prev.cardIdx === -1) {
-            // Move from list title to first card
-            return visibleCards.length > 0 ? { ...prev, cardIdx: 0 } : prev;
-          }
-          if (prev.cardIdx < visibleCards.length - 1) {
-            // Move to next card
-            return { ...prev, cardIdx: prev.cardIdx + 1 };
-          }
-          // At last card — open modal
-          const cardId = visibleCards[prev.cardIdx];
-          const card = cardId ? board.cards[cardId] : null;
-          if (card) {
-            // Use setTimeout to avoid state conflict with setFocusPos
-            setTimeout(() => setEditingCard(card), 0);
-          }
-          return prev;
-        });
-        return;
-      }
-
-      if (e.key === "Escape") {
-        setFocusPos(null);
-        return;
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [viewMode, editingCard, editingListId, addingCardListId, editingProjectName, showAddList, board.lists, board.cards, hideCompleted]);
+  }, [focusPos, viewMode, board.lists.length]);
 
   // ===================== LIST ACTIONS =====================
 
@@ -575,6 +519,270 @@ export default function Board() {
     if (hideCompleted) return sorted.filter(id => !board.cards[id]?.completed);
     return sorted;
   };
+
+  // ===================== BOARD KEYBOARD SHORTCUTS =====================
+
+  useEffect(() => {
+    if (viewMode !== "board") return;
+    const isModalOpen = !!editingCard || !!editingListId || !!addingCardListId || !!editingProjectName || showAddList || showShortcutHelp;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      if (isModalOpen) return;
+
+      // ? — toggle shortcut help
+      if (e.key === "?") {
+        e.preventDefault();
+        setShowShortcutHelp(prev => !prev);
+        return;
+      }
+
+      // Tab / Shift+Tab — move between lists (including "Add list" slot at the end)
+      if (e.key === "Tab") {
+        e.preventDefault();
+        setFocusPos(prev => {
+          const listCount = board.lists.length;
+          if (listCount === 0) return { listIdx: 0, cardIdx: -1 }; // focus add-list
+          if (!prev) return { listIdx: 0, cardIdx: -1 };
+          const dir = e.shiftKey ? -1 : 1;
+          const newListIdx = Math.max(0, Math.min(listCount, prev.listIdx + dir));
+          if (newListIdx >= listCount) return { listIdx: listCount, cardIdx: -1 };
+          const newList = board.lists[newListIdx];
+          const visibleCount = newList ? getVisibleCardIds(newList.cardIds).length : 0;
+          const newCardIdx = prev.cardIdx === -1 ? -1 : Math.min(prev.cardIdx, visibleCount - 1);
+          return { listIdx: newListIdx, cardIdx: Math.max(-1, newCardIdx) };
+        });
+        return;
+      }
+
+      // ArrowLeft / ArrowRight — move between lists (including "Add list" slot at the end)
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        setFocusPos(prev => {
+          const listCount = board.lists.length;
+          if (listCount === 0) return { listIdx: 0, cardIdx: -1 };
+          if (!prev) return { listIdx: 0, cardIdx: -1 };
+          const dir = e.key === "ArrowLeft" ? -1 : 1;
+          const newListIdx = Math.max(0, Math.min(listCount, prev.listIdx + dir));
+          if (newListIdx >= listCount) return { listIdx: listCount, cardIdx: -1 };
+          const newList = board.lists[newListIdx];
+          const visibleCount = newList ? getVisibleCardIds(newList.cardIds).length : 0;
+          const newCardIdx = prev.cardIdx === -1 ? -1 : Math.min(prev.cardIdx, visibleCount - 1);
+          return { listIdx: newListIdx, cardIdx: Math.max(-1, newCardIdx) };
+        });
+        return;
+      }
+
+      // ArrowUp / ArrowDown — move between cards within a list
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusPos(prev => {
+          const listCount = board.lists.length;
+          if (listCount === 0) return null;
+          if (!prev) return { listIdx: 0, cardIdx: -1 };
+          if (prev.listIdx >= listCount) return prev; // on add-list slot, no up/down
+          const list = board.lists[prev.listIdx];
+          if (!list) return prev;
+          const visibleCards = getVisibleCardIds(list.cardIds);
+          if (e.key === "ArrowUp") {
+            if (prev.cardIdx <= 0) return { ...prev, cardIdx: -1 };
+            return { ...prev, cardIdx: prev.cardIdx - 1 };
+          } else {
+            if (prev.cardIdx === -1) {
+              return visibleCards.length > 0 ? { ...prev, cardIdx: 0 } : prev;
+            }
+            if (prev.cardIdx < visibleCards.length - 1) {
+              return { ...prev, cardIdx: prev.cardIdx + 1 };
+            }
+            return prev;
+          }
+        });
+        return;
+      }
+
+      // Enter — on add-list: open form. On list title: move to first card. On card: open modal.
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (!focusPos) {
+          setFocusPos({ listIdx: 0, cardIdx: -1 });
+          return;
+        }
+        // On the "Add another list" slot
+        if (focusPos.listIdx >= board.lists.length) {
+          setShowAddList(true);
+          return;
+        }
+        const list = board.lists[focusPos.listIdx];
+        if (!list) return;
+        const visibleCards = getVisibleCardIds(list.cardIds);
+        if (focusPos.cardIdx === -1) {
+          if (visibleCards.length > 0) setFocusPos({ ...focusPos, cardIdx: 0 });
+        } else {
+          const cardId = visibleCards[focusPos.cardIdx];
+          const card = cardId ? board.cards[cardId] : null;
+          if (card) setEditingCard(card);
+        }
+        return;
+      }
+
+      // Space — toggle card completion
+      if (e.key === " ") {
+        e.preventDefault();
+        if (!focusPos || focusPos.cardIdx < 0) return;
+        const list = board.lists[focusPos.listIdx];
+        if (!list) return;
+        const visibleCards = getVisibleCardIds(list.cardIds);
+        const cardId = visibleCards[focusPos.cardIdx];
+        if (cardId) toggleCard(cardId);
+        return;
+      }
+
+      // N — add card to focused list
+      if (e.key === "n" || e.key === "N") {
+        e.preventDefault();
+        const listIdx = focusPos?.listIdx ?? 0;
+        const list = board.lists[listIdx];
+        if (list) {
+          if (!focusPos) setFocusPos({ listIdx: 0, cardIdx: -1 });
+          setAddingCardListId(list.id);
+          setAddingCardTitle("");
+        }
+        return;
+      }
+
+      // L — add new list
+      if (e.key === "l" || e.key === "L") {
+        e.preventDefault();
+        setShowAddList(true);
+        return;
+      }
+
+      // Delete / Backspace — delete focused card or list
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        if (!focusPos) return;
+        const list = board.lists[focusPos.listIdx];
+        if (!list) return;
+        if (focusPos.cardIdx >= 0) {
+          const visibleCards = getVisibleCardIds(list.cardIds);
+          const cardId = visibleCards[focusPos.cardIdx];
+          const card = cardId ? board.cards[cardId] : null;
+          if (card && confirm(`Delete "${card.title}"?`)) {
+            deleteCard(cardId);
+            // Adjust focus after delete
+            const newVisibleCount = visibleCards.length - 1;
+            if (newVisibleCount === 0) {
+              setFocusPos({ ...focusPos, cardIdx: -1 });
+            } else if (focusPos.cardIdx >= newVisibleCount) {
+              setFocusPos({ ...focusPos, cardIdx: newVisibleCount - 1 });
+            }
+          }
+        } else {
+          if (confirm(`Delete "${list.title}" and all its cards?`)) {
+            deleteList(list.id);
+            const newListCount = board.lists.length - 1;
+            if (newListCount === 0) {
+              setFocusPos(null);
+            } else {
+              setFocusPos({ listIdx: Math.min(focusPos.listIdx, newListCount - 1), cardIdx: -1 });
+            }
+          }
+        }
+        return;
+      }
+
+      // H — toggle hide completed
+      if (e.key === "h" || e.key === "H") {
+        e.preventDefault();
+        setHideCompleted(prev => !prev);
+        return;
+      }
+
+      // Escape — clear focus
+      if (e.key === "Escape") {
+        setFocusPos(null);
+        return;
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [viewMode, editingCard, editingListId, addingCardListId, editingProjectName, showAddList, showShortcutHelp, board.lists, board.cards, hideCompleted, focusPos, toggleCard, deleteCard, deleteList]);
+
+  // ===================== MODAL KEYBOARD SHORTCUTS =====================
+
+  useEffect(() => {
+    if (!editingCard) return;
+
+    const handleModalKeyDown = (e: KeyboardEvent) => {
+      // Skip if user is typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      // Escape — close modal
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setEditingCard(null);
+        setEditDesc(false);
+        setShowLabelPicker(false);
+        setShowDatePicker(false);
+        setShowStartDatePicker(false);
+        return;
+      }
+
+      // ArrowLeft / ArrowRight — navigate to prev/next card in same list
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        const parentList = board.lists.find(l => l.cardIds.includes(editingCard.id));
+        if (!parentList) return;
+        const visibleCards = getVisibleCardIds(parentList.cardIds);
+        const currentIdx = visibleCards.indexOf(editingCard.id);
+        if (currentIdx === -1) return;
+        const dir = e.key === "ArrowLeft" ? -1 : 1;
+        const newIdx = currentIdx + dir;
+        if (newIdx < 0 || newIdx >= visibleCards.length) return;
+        const newCard = board.cards[visibleCards[newIdx]];
+        if (newCard) setEditingCard(newCard);
+        return;
+      }
+
+      // C — toggle complete
+      if (e.key === "c" || e.key === "C") {
+        e.preventDefault();
+        toggleCard(editingCard.id);
+        return;
+      }
+
+      // Delete — delete card
+      if (e.key === "Delete") {
+        e.preventDefault();
+        if (confirm(`Delete "${editingCard.title}"?`)) {
+          deleteCard(editingCard.id);
+        }
+        return;
+      }
+    };
+
+    document.addEventListener("keydown", handleModalKeyDown);
+    return () => document.removeEventListener("keydown", handleModalKeyDown);
+  }, [editingCard, board.lists, board.cards, hideCompleted, toggleCard, deleteCard]);
+
+  // ===================== SHORTCUT HELP KEYBOARD =====================
+
+  useEffect(() => {
+    if (!showShortcutHelp) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" || e.key === "?") {
+        e.preventDefault();
+        setShowShortcutHelp(false);
+      }
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [showShortcutHelp]);
 
   // ===================== RENDER =====================
 
@@ -1122,7 +1330,7 @@ export default function Board() {
               </div>
             </div>
           ) : (
-            <button className="add-list-btn" onClick={() => setShowAddList(true)}>
+            <button className={`add-list-btn ${focusPos?.listIdx === board.lists.length ? "kb-focused" : ""}`} onClick={() => setShowAddList(true)}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
@@ -1131,6 +1339,48 @@ export default function Board() {
           )}
         </div>
       </div>
+      )}
+
+      {/* Keyboard shortcuts help overlay */}
+      {showShortcutHelp && (
+        <div className="shortcut-help-overlay" onClick={() => setShowShortcutHelp(false)}>
+          <div className="shortcut-help-content" onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowShortcutHelp(false)}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h2 className="shortcut-help-title">Keyboard Shortcuts</h2>
+
+            <h3 className="shortcut-help-section">Board View</h3>
+            <table className="shortcut-help-table">
+              <tbody>
+                <tr><td><kbd className="shortcut-key">&larr;</kbd> <kbd className="shortcut-key">&rarr;</kbd></td><td>Move focus between lists</td></tr>
+                <tr><td><kbd className="shortcut-key">&uarr;</kbd> <kbd className="shortcut-key">&darr;</kbd></td><td>Move focus between cards</td></tr>
+                <tr><td><kbd className="shortcut-key">Tab</kbd></td><td>Next list / <kbd className="shortcut-key">Shift+Tab</kbd> Previous list</td></tr>
+                <tr><td><kbd className="shortcut-key">Enter</kbd></td><td>Open card / Enter list</td></tr>
+                <tr><td><kbd className="shortcut-key">Space</kbd></td><td>Toggle card complete</td></tr>
+                <tr><td><kbd className="shortcut-key">N</kbd></td><td>Add new card to focused list</td></tr>
+                <tr><td><kbd className="shortcut-key">L</kbd></td><td>Add new list</td></tr>
+                <tr><td><kbd className="shortcut-key">Delete</kbd></td><td>Delete focused card or list</td></tr>
+                <tr><td><kbd className="shortcut-key">H</kbd></td><td>Toggle hide completed</td></tr>
+                <tr><td><kbd className="shortcut-key">Esc</kbd></td><td>Clear focus</td></tr>
+              </tbody>
+            </table>
+
+            <h3 className="shortcut-help-section">Card Modal</h3>
+            <table className="shortcut-help-table">
+              <tbody>
+                <tr><td><kbd className="shortcut-key">&larr;</kbd> <kbd className="shortcut-key">&rarr;</kbd></td><td>Previous / next card</td></tr>
+                <tr><td><kbd className="shortcut-key">C</kbd></td><td>Toggle complete</td></tr>
+                <tr><td><kbd className="shortcut-key">Delete</kbd></td><td>Delete card</td></tr>
+                <tr><td><kbd className="shortcut-key">Esc</kbd></td><td>Close modal</td></tr>
+              </tbody>
+            </table>
+
+            <p className="shortcut-help-hint">Press <kbd className="shortcut-key">?</kbd> to toggle this help</p>
+          </div>
+        </div>
       )}
 
       {/* Card detail modal */}

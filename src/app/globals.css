@@ -1374,3 +1374,92 @@ body {
 .card.kb-focused {
   box-shadow: 0 0 0 2px #0079bf;
 }
+
+.add-list-btn.kb-focused {
+  box-shadow: 0 0 0 2px white;
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* ===== KEYBOARD SHORTCUTS HELP ===== */
+.shortcut-help-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 24px;
+}
+
+.shortcut-help-content {
+  background: white;
+  border-radius: 12px;
+  padding: 28px 32px;
+  max-width: 520px;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.shortcut-help-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #172b4d;
+  margin-bottom: 20px;
+  padding-right: 32px;
+}
+
+.shortcut-help-section {
+  font-size: 12px;
+  font-weight: 700;
+  color: #5e6c84;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin: 16px 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #ebecf0;
+}
+
+.shortcut-help-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.shortcut-help-table td {
+  padding: 5px 0;
+  font-size: 14px;
+  color: #172b4d;
+  vertical-align: middle;
+}
+
+.shortcut-help-table td:first-child {
+  width: 140px;
+  white-space: nowrap;
+  padding-right: 16px;
+}
+
+.shortcut-key {
+  display: inline-block;
+  padding: 2px 7px;
+  background: #f4f5f7;
+  border: 1px solid #dfe1e6;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #172b4d;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace;
+  line-height: 1.4;
+  box-shadow: 0 1px 0 #c1c7cd;
+}
+
+.shortcut-help-hint {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid #ebecf0;
+  font-size: 13px;
+  color: #8c96a5;
+  text-align: center;
+}
