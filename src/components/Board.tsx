@@ -1078,7 +1078,7 @@ export default function Board() {
                 {ganttLists.map(({ listId, listTitle, cards }) => (
                   <div key={listId} className="gantt-list-group">
                     <div className="gantt-list-header" style={{ width: labelWidth + totalWidth }}>
-                      <span>{listTitle}</span>
+                      <span className="gantt-list-header-text" style={{ width: labelWidth, minWidth: labelWidth }}>{listTitle}</span>
                     </div>
                     {cards.map(card => {
                       const start = card.startDate || card.dueDate;

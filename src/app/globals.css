@@ -1209,16 +1209,21 @@ body {
 .gantt-list-header {
   display: flex;
   align-items: center;
-  padding: 8px 12px;
   font-size: 12px;
   font-weight: 700;
   color: #172b4d;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   background: #f1f2f4;
+  border-bottom: 1px solid #dfe1e6;
+}
+
+.gantt-list-header-text {
   position: sticky;
   left: 0;
-  border-bottom: 1px solid #dfe1e6;
+  z-index: 5;
+  padding: 8px 12px;
+  background: #f1f2f4;
 }
 
 /* Gantt row */
@@ -1626,6 +1631,19 @@ body {
   }
   .gantt-bar {
     cursor: pointer;
+  }
+
+  /* Gantt: reinforce sticky positioning on touch devices */
+  .gantt-scroll {
+    -webkit-overflow-scrolling: touch;
+  }
+  .gantt-row-label,
+  .gantt-label-col,
+  .gantt-list-header-text {
+    position: -webkit-sticky;
+    position: sticky;
+    left: 0;
+    will-change: left;
   }
 }
 
