@@ -1,0 +1,264 @@
+{
+  "id": "board-demo-sales",
+  "name": "Salesforce Sales Pipeline",
+  "lists": [
+    {
+      "id": "list-leads",
+      "title": "New Leads",
+      "cardIds": [
+        "card-l1",
+        "card-l2",
+        "card-l3",
+        "card-l4"
+      ]
+    },
+    {
+      "id": "list-qualified",
+      "title": "Qualified",
+      "cardIds": [
+        "card-q1",
+        "card-q2",
+        "card-q3"
+      ]
+    },
+    {
+      "id": "list-proposal",
+      "title": "Proposal Sent",
+      "cardIds": [
+        "card-p1",
+        "card-p2",
+        "card-p3"
+      ]
+    },
+    {
+      "id": "list-negotiation",
+      "title": "Negotiation",
+      "cardIds": [
+        "card-n1",
+        "card-n2"
+      ]
+    },
+    {
+      "id": "list-closed",
+      "title": "Closed Won",
+      "cardIds": [
+        "card-c1",
+        "card-c2",
+        "card-c3"
+      ]
+    }
+  ],
+  "cards": {
+    "card-l1": {
+      "id": "card-l1",
+      "title": "Acme Corp — Enterprise License",
+      "description": "Inbound lead from website. VP of Sales interested in 200-seat Enterprise plan. Follow up scheduled for next week.",
+      "labels": [
+        "blue"
+      ],
+      "startDate": "2026-02-10",
+      "dueDate": "2026-02-20",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-10T09:00:00.000Z"
+    },
+    "card-l2": {
+      "id": "card-l2",
+      "title": "GlobalTech Inc — Platform Migration",
+      "description": "Referred by existing customer. Looking to migrate from HubSpot to Salesforce. ~$85K ARR potential.",
+      "labels": [
+        "purple"
+      ],
+      "startDate": "2026-02-12",
+      "dueDate": "2026-02-25",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-12T10:30:00.000Z"
+    },
+    "card-l3": {
+      "id": "card-l3",
+      "title": "Pinnacle Health — CRM Setup",
+      "description": "Healthcare vertical. Need HIPAA-compliant CRM solution. Initial discovery call completed.",
+      "labels": [
+        "orange"
+      ],
+      "startDate": "2026-02-14",
+      "dueDate": "2026-02-28",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-14T08:00:00.000Z"
+    },
+    "card-l4": {
+      "id": "card-l4",
+      "title": "StartupXYZ — Sales Cloud Starter",
+      "description": "Small team of 15. Interested in Sales Cloud starter pack. Low ACV but fast close potential.",
+      "labels": [
+        "green"
+      ],
+      "startDate": "2026-02-15",
+      "dueDate": "2026-02-22",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-15T14:00:00.000Z"
+    },
+    "card-q1": {
+      "id": "card-q1",
+      "title": "Meridian Financial — Full Suite",
+      "description": "BANT qualified. Budget: $150K. Authority: CTO + CFO. Need: unified sales & service platform. Timeline: Q1 close.",
+      "labels": [
+        "blue",
+        "red"
+      ],
+      "startDate": "2026-01-20",
+      "dueDate": "2026-03-01",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-01-20T09:00:00.000Z"
+    },
+    "card-q2": {
+      "id": "card-q2",
+      "title": "NovaBuild Construction — Field Service",
+      "description": "Qualified for Field Service Lightning. 50 field reps. Demo went well, awaiting technical review.",
+      "labels": [
+        "orange"
+      ],
+      "startDate": "2026-01-28",
+      "dueDate": "2026-02-28",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-01-28T11:00:00.000Z"
+    },
+    "card-q3": {
+      "id": "card-q3",
+      "title": "EduLearn — Marketing Cloud",
+      "description": "EdTech company. Needs marketing automation + journey builder. Champion is Head of Growth.",
+      "labels": [
+        "purple"
+      ],
+      "startDate": "2026-02-01",
+      "dueDate": "2026-03-10",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-01T13:00:00.000Z"
+    },
+    "card-p1": {
+      "id": "card-p1",
+      "title": "Orion Logistics — $120K Proposal",
+      "description": "Sent SOW for Sales Cloud + Service Cloud bundle. 100 users. Awaiting legal review on their end. Follow up Feb 20.",
+      "labels": [
+        "blue",
+        "yellow"
+      ],
+      "startDate": "2026-01-15",
+      "dueDate": "2026-02-20",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-01-15T09:00:00.000Z"
+    },
+    "card-p2": {
+      "id": "card-p2",
+      "title": "BrightRetail — Commerce Cloud",
+      "description": "E-commerce platform migration. $200K deal. Proposal includes implementation services. Competitor: Shopify Plus.",
+      "labels": [
+        "red",
+        "purple"
+      ],
+      "startDate": "2026-01-25",
+      "dueDate": "2026-02-25",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-01-25T10:00:00.000Z"
+    },
+    "card-p3": {
+      "id": "card-p3",
+      "title": "Atlas Manufacturing — CPQ",
+      "description": "Configure-Price-Quote solution for complex product catalog. Sent revised proposal after feedback. $75K ARR.",
+      "labels": [
+        "orange",
+        "yellow"
+      ],
+      "startDate": "2026-02-01",
+      "dueDate": "2026-03-05",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-01T09:00:00.000Z"
+    },
+    "card-n1": {
+      "id": "card-n1",
+      "title": "Zenith Media — $250K Enterprise Deal",
+      "description": "Final pricing negotiation. They want 15% discount on 3-year commitment. VP of Sales leading. Legal redlines in progress.",
+      "labels": [
+        "red",
+        "blue"
+      ],
+      "startDate": "2026-01-02",
+      "dueDate": "2026-02-15",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-01-05T09:00:00.000Z"
+    },
+    "card-n2": {
+      "id": "card-n2",
+      "title": "ClearPath Insurance — Service Cloud",
+      "description": "Negotiating implementation timeline & support SLA. Deal value $95K. Verbal commitment received, pending signature.",
+      "labels": [
+        "yellow",
+        "green"
+      ],
+      "startDate": "2026-01-12",
+      "dueDate": "2026-02-22",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-01-12T10:00:00.000Z"
+    },
+    "card-c1": {
+      "id": "card-c1",
+      "title": "Summit Energy — Sales Cloud ($80K)",
+      "description": "3-year deal signed. 60 users. Kickoff scheduled for March 1. CSM assigned: Sarah Chen.",
+      "labels": [
+        "green"
+      ],
+      "startDate": "2025-12-01",
+      "dueDate": "2026-02-05",
+      "completed": true,
+      "completedAt": "2026-02-05T16:00:00.000Z",
+      "createdAt": "2025-12-01T09:00:00.000Z"
+    },
+    "card-c2": {
+      "id": "card-c2",
+      "title": "Velocity Motors — Pardot + Sales Cloud ($110K)",
+      "description": "Automotive dealership group. 12 locations. Signed after competitive POC vs. Microsoft Dynamics.",
+      "labels": [
+        "green",
+        "blue"
+      ],
+      "startDate": "2025-11-15",
+      "dueDate": "2026-01-30",
+      "completed": true,
+      "completedAt": "2026-01-30T14:00:00.000Z",
+      "createdAt": "2025-11-15T09:00:00.000Z"
+    },
+    "card-c3": {
+      "id": "card-c3",
+      "title": "FreshFoods Co-op — Starter Pack ($15K)",
+      "description": "Quick close. Small deal but strategic — opens door to 200+ member co-ops in their network.",
+      "labels": [
+        "green"
+      ],
+      "startDate": "2026-01-20",
+      "dueDate": "2026-02-10",
+      "completed": true,
+      "completedAt": "2026-02-10T11:00:00.000Z",
+      "createdAt": "2026-01-20T09:00:00.000Z"
+    }
+  },
+  "labelNames": {
+    "green": "Won / Low Risk",
+    "yellow": "Pending Review",
+    "orange": "Medium Priority",
+    "red": "High Priority",
+    "purple": "New Business",
+    "blue": "Enterprise"
+  },
+  "version": 1
+}
