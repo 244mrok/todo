@@ -143,7 +143,7 @@ export default function Board() {
   const [dragOverListId, setDragOverListId] = useState<string | null>(null);
 
   // List drag state
-  const dragListRef = useRef<string | null>(null);
+  const [draggingListId, setDraggingListId] = useState<string | null>(null);
   const [dragOverListIdx, setDragOverListIdx] = useState<number | null>(null);
 
   // Gantt drag state
@@ -167,14 +167,16 @@ export default function Board() {
 
   // ===================== KEYBOARD NAVIGATION =====================
 
-  // Clear focus when switching to gantt or when modal opens via click
-  useEffect(() => {
-    if (viewMode === "gantt") setFocusPos(null);
-  }, [viewMode]);
+  // Wrappers that clear keyboard focus when switching view or opening a card modal
+  const setViewModeAndClearFocus = useCallback((mode: "board" | "gantt") => {
+    setViewMode(mode);
+    if (mode === "gantt") setFocusPos(null);
+  }, []);
 
-  useEffect(() => {
-    if (editingCard) setFocusPos(null);
-  }, [editingCard]);
+  const openCardModal = useCallback((card: Card | null) => {
+    setEditingCard(card);
+    if (card) setFocusPos(null);
+  }, []);
 
   useEffect(() => {
     if (!focusPos || viewMode !== "board") return;
@@ -325,14 +327,14 @@ export default function Board() {
   // ===================== LIST DRAG & DROP =====================
 
   const handleListDragStart = (e: React.DragEvent, listId: string) => {
-    dragListRef.current = listId;
+    setDraggingListId(listId);
     e.dataTransfer.effectAllowed = "move";
     // Add a custom type so we can distinguish list drags from card drags
     e.dataTransfer.setData("text/x-list-id", listId);
   };
 
   const handleListDragOver = (e: React.DragEvent, idx: number) => {
-    if (!dragListRef.current) return;
+    if (!draggingListId) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     setDragOverListIdx(idx);
@@ -341,9 +343,9 @@ export default function Board() {
   const handleListDrop = (e: React.DragEvent, targetIdx: number) => {
     e.preventDefault();
     setDragOverListIdx(null);
-    if (!dragListRef.current) return;
-    const sourceId = dragListRef.current;
-    dragListRef.current = null;
+    if (!draggingListId) return;
+    const sourceId = draggingListId;
+    setDraggingListId(null);
 
     setBoardAndSave(prev => {
       const sourceIdx = prev.lists.findIndex(l => l.id === sourceId);
@@ -358,7 +360,7 @@ export default function Board() {
   };
 
   const handleListDragEnd = () => {
-    dragListRef.current = null;
+    setDraggingListId(null);
     setDragOverListIdx(null);
   };
 
@@ -599,7 +601,7 @@ export default function Board() {
         } else {
           const cardId = visibleCards[focusPos.cardIdx];
           const card = cardId ? board.cards[cardId] : null;
-          if (card) setEditingCard(card);
+          if (card) openCardModal(card);
         }
         return;
       }
@@ -852,7 +854,7 @@ export default function Board() {
           <div className="view-toggle">
             <button
               className={`view-toggle-btn ${viewMode === "board" ? "view-toggle-btn-active" : ""}`}
-              onClick={() => setViewMode("board")}
+              onClick={() => setViewModeAndClearFocus("board")}
               title="Board view"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -863,7 +865,7 @@ export default function Board() {
             </button>
             <button
               className={`view-toggle-btn ${viewMode === "gantt" ? "view-toggle-btn-active" : ""}`}
-              onClick={() => setViewMode("gantt")}
+              onClick={() => setViewModeAndClearFocus("gantt")}
               title="Timeline view"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -1052,7 +1054,7 @@ export default function Board() {
                             className="gantt-row-label"
                             style={{ width: labelWidth, minWidth: labelWidth }}
                             title={card.title}
-                            onClick={() => setEditingCard(board.cards[card.id])}
+                            onClick={() => openCardModal(board.cards[card.id])}
                           >
                             <span className={`gantt-row-checkbox ${card.completed ? "gantt-row-checkbox-done" : ""}`} />
                             <span className={`gantt-row-title ${card.completed ? "gantt-row-title-done" : ""}`}>
@@ -1074,7 +1076,7 @@ export default function Board() {
                             <div
                               className={`gantt-bar ${barClass} ${isDragging ? "gantt-bar-dragging" : ""}`}
                               style={{ left: barLeft, width: barWidth }}
-                              onClick={() => { if (!ganttDrag.current?.moved) setEditingCard(board.cards[card.id]); }}
+                              onClick={() => { if (!ganttDrag.current?.moved) openCardModal(board.cards[card.id]); }}
                               title={`${card.title}\n${start} → ${end}`}
                               onMouseDown={e => handleGanttMouseDown(e, card.id, "move", calcLeft, calcWidth, start, end, rangeStartTime, dayWidth)}
                             >
@@ -1114,14 +1116,14 @@ export default function Board() {
               />
               <div
                 data-list-idx={idx}
-                className={`list-wrapper ${dragOverListId === list.id ? "list-drag-over" : ""} ${dragListRef.current === list.id ? "list-dragging" : ""}`}
+                className={`list-wrapper ${dragOverListId === list.id ? "list-drag-over" : ""} ${draggingListId === list.id ? "list-dragging" : ""}`}
                 onDragOver={e => {
                   // Only handle card drag-over on the list body
-                  if (!dragListRef.current) handleDragOver(e, list.id);
+                  if (!draggingListId) handleDragOver(e, list.id);
                 }}
                 onDragLeave={handleDragLeave}
                 onDrop={e => {
-                  if (!dragListRef.current) handleDrop(e, list.id);
+                  if (!draggingListId) handleDrop(e, list.id);
                 }}
               >
               {/* List header — draggable for list reordering */}
@@ -1183,7 +1185,7 @@ export default function Board() {
                       draggable
                       onDragStart={() => handleDragStart(card.id, list.id)}
                       onDragEnd={handleDragEnd}
-                      onClick={() => setEditingCard(card)}
+                      onClick={() => openCardModal(card)}
                     >
                       {card.labels.length > 0 && (
                         <div className="card-labels">
