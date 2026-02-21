@@ -1506,6 +1506,11 @@ body {
 
 /* ===== TABLET BREAKPOINT (768px) ===== */
 @media (max-width: 768px) {
+  /* Remove backdrop-filter so position:fixed pickers work inside header */
+  .board-header {
+    backdrop-filter: none;
+  }
+
   /* Header: hide button text, keep icons */
   .header-toggle-btn {
     padding: 8px;
@@ -1626,11 +1631,12 @@ body {
 
 /* ===== PHONE BREAKPOINT (480px) ===== */
 @media (max-width: 480px) {
-  /* Header: wrap to 2 rows */
+  /* Header: wrap to 2 rows; remove backdrop-filter so position:fixed pickers work */
   .board-header {
     flex-wrap: wrap;
     gap: 6px;
     padding: 6px 10px;
+    backdrop-filter: none;
   }
   .board-header-left {
     flex: 1;
