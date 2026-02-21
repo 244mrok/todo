@@ -22,6 +22,7 @@ export interface BoardData {
   lists: List[];
   cards: Record<string, Card>;
   labelNames: Record<string, string>;
+  version: number;
 }
 
 export const LABEL_COLORS: Record<string, string> = {

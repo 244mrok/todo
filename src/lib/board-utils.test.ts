@@ -30,6 +30,7 @@ describe("createEmptyBoard", () => {
     expect(board.lists).toEqual([]);
     expect(board.cards).toEqual({});
     expect(board.labelNames).toEqual({});
+    expect(board.version).toBe(1);
   });
 
   it("generates unique IDs when called at different times", async () => {
@@ -101,6 +102,7 @@ describe("getListForCard", () => {
     ],
     cards: {},
     labelNames: {},
+    version: 1,
   };
 
   it("finds the correct list for a card", () => {
@@ -120,6 +122,7 @@ describe("getLabelName", () => {
     lists: [],
     cards: {},
     labelNames: { green: "Priority", red: "Bug" },
+    version: 1,
   };
 
   it("returns label name when it exists", () => {
@@ -132,7 +135,7 @@ describe("getLabelName", () => {
   });
 
   it("returns empty string when labelNames is empty", () => {
-    const emptyBoard: BoardData = { ...board, labelNames: {} };
+    const emptyBoard: BoardData = { ...board, labelNames: {}, version: 1 };
     expect(getLabelName(emptyBoard, "green")).toBe("");
   });
 });

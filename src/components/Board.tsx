@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import type { BoardData, Card } from "@/types/board";
 import { LABEL_COLORS } from "@/types/board";
 import { createEmptyBoard, getVisibleCardIds as getVisibleCardIdsUtil, getListForCard as getListForCardUtil, getLabelName as getLabelNameUtil } from "@/lib/board-utils";
+import { useBoardSync } from "@/hooks/useBoardSync";
 
 export default function Board() {
   const [board, setBoard] = useState<BoardData>(createEmptyBoard);
@@ -18,6 +19,22 @@ export default function Board() {
     dirty.current = true;
     setBoard(updater);
   }, []);
+
+  // Real-time sync via SSE
+  const handleRemoteUpdate = useCallback((remoteBoard: BoardData) => {
+    if (dirty.current) return; // Don't overwrite mid-edit
+    setBoard(remoteBoard);
+  }, []);
+
+  const handleRemoteDeleted = useCallback(() => {
+    window.location.reload();
+  }, []);
+
+  const { clientId } = useBoardSync({
+    boardId: board.id,
+    onRemoteUpdate: handleRemoteUpdate,
+    onDeleted: handleRemoteDeleted,
+  });
 
   // Load last used board or first available board on mount
   useEffect(() => {
@@ -65,12 +82,25 @@ export default function Board() {
       localStorage.setItem("last-board-id", board.id);
       fetch(`/api/board/${board.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Client-Id": clientId },
         body: JSON.stringify(board),
+      }).then(res => {
+        if (res.status === 409) {
+          // Version conflict — adopt server state
+          return res.json().then(({ serverBoard }) => {
+            if (serverBoard) setBoard(serverBoard);
+          });
+        }
+        // Update local version from response
+        return res.json().then(data => {
+          if (data?.version) {
+            setBoard(prev => prev.version < data.version ? { ...prev, version: data.version } : prev);
+          }
+        });
       }).catch(() => {});
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [board, loaded]);
+  }, [board, loaded, clientId]);
 
   const loadBoardList = useCallback(() => {
     fetch("/api/board")
