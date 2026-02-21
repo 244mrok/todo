@@ -12,17 +12,19 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const { login } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setSubmitting(true);
     const result = await login(email, password, rememberMe);
     setSubmitting(false);
     if (result.error) {
-      toast(result.error, "error");
+      setError(result.error);
     } else {
       router.push("/");
     }
@@ -31,6 +33,7 @@ export default function LoginPage() {
   return (
     <>
       <h2 className="auth-title">Sign in to your account</h2>
+      {error && <div className="auth-error">{error}</div>}
       <form onSubmit={handleSubmit} className="auth-form">
         <div className="auth-field">
           <label htmlFor="email">Email</label>

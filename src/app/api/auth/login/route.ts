@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { getUserByEmail, verifyPassword } from "@/lib/auth";
 import { createSessionCookie } from "@/lib/session";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
-  const ip = req.headers.get("x-forwarded-for") || "unknown";
-  const { allowed } = checkRateLimit(ip);
+  const ip = getClientIp(req);
+  const { allowed } = checkRateLimit(`login:${ip}`);
   if (!allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },

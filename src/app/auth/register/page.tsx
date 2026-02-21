@@ -13,21 +13,23 @@ export default function RegisterPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
   const { register } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     if (password.length < 8) {
-      toast("Password must be at least 8 characters.", "error");
+      setError("Password must be at least 8 characters.");
       return;
     }
     setSubmitting(true);
     const result = await register(name, email, password);
     setSubmitting(false);
     if (result.error) {
-      toast(result.error, "error");
+      setError(result.error);
     } else {
       toast("Account created! Check your email to verify.", "success");
       router.push("/");
@@ -37,6 +39,7 @@ export default function RegisterPage() {
   return (
     <>
       <h2 className="auth-title">Create your account</h2>
+      {error && <div className="auth-error">{error}</div>}
       <form onSubmit={handleSubmit} className="auth-form">
         <div className="auth-field">
           <label htmlFor="name">Name</label>

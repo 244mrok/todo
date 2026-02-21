@@ -1,5 +1,13 @@
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const MAX_REQUESTS = 10;
+const MAX_REQUESTS = 30;
+
+export function getClientIp(req: Request): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "127.0.0.1"
+  );
+}
 
 interface RateLimitEntry {
   count: number;

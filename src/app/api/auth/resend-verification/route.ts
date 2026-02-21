@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { createEmailToken } from "@/lib/auth";
 import { getSessionUser } from "@/lib/session";
 import { sendVerificationEmail } from "@/lib/email";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
-  const ip = req.headers.get("x-forwarded-for") || "unknown";
-  const { allowed } = checkRateLimit(ip);
+  const ip = getClientIp(req);
+  const { allowed } = checkRateLimit(`resend:${ip}`);
   if (!allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please try again later." },
