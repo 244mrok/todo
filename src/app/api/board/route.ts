@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { getSession } from "@/lib/session";
+import { getUserBoards } from "@/lib/auth";
 
 const BOARDS_DIR = path.join(process.cwd(), "data", "boards");
 
@@ -10,14 +12,22 @@ function ensureDir() {
   }
 }
 
-// GET /api/board — list all saved boards [{id, name}]
+// GET /api/board — list boards owned by the current user
 export async function GET() {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  }
+
   ensureDir();
+  const ownedBoardIds = new Set(getUserBoards(session.userId));
   const files = fs.readdirSync(BOARDS_DIR).filter(f => f.endsWith(".json"));
-  const boards = files.map(f => {
-    const raw = fs.readFileSync(path.join(BOARDS_DIR, f), "utf-8");
-    const data = JSON.parse(raw);
-    return { id: data.id, name: data.name || "Untitled" };
-  });
+  const boards = files
+    .filter(f => ownedBoardIds.has(f.replace(".json", "")))
+    .map(f => {
+      const raw = fs.readFileSync(path.join(BOARDS_DIR, f), "utf-8");
+      const data = JSON.parse(raw);
+      return { id: data.id, name: data.name || "Untitled" };
+    });
   return NextResponse.json(boards);
 }

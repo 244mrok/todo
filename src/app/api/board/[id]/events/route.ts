@@ -1,9 +1,21 @@
 import { subscribe } from "@/lib/event-bus";
+import { getSession } from "@/lib/session";
+import { isBoardOwner } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session) {
+    return new Response("Not authenticated", { status: 401 });
+  }
+
   const { id: boardId } = await params;
+
+  if (!isBoardOwner(boardId, session.userId)) {
+    return new Response("Access denied", { status: 403 });
+  }
+
   const url = new URL(req.url);
   const clientId = url.searchParams.get("clientId") ?? "anonymous";
 

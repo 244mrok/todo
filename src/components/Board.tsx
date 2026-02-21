@@ -5,8 +5,13 @@ import type { BoardData, Card } from "@/types/board";
 import { LABEL_COLORS } from "@/types/board";
 import { createEmptyBoard, getVisibleCardIds as getVisibleCardIdsUtil, getListForCard as getListForCardUtil, getLabelName as getLabelNameUtil } from "@/lib/board-utils";
 import { useBoardSync } from "@/hooks/useBoardSync";
+import { useAuth } from "@/components/AuthProvider";
+import { useToast } from "@/components/Toast";
 
 export default function Board() {
+  const { user, logout } = useAuth();
+  const { toast } = useToast();
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const [board, setBoard] = useState<BoardData>(createEmptyBoard);
   const [loaded, setLoaded] = useState(false);
   const dirty = useRef(false); // only save when user actually changes something
@@ -938,8 +943,59 @@ export default function Board() {
           )}
           {hideCompleted ? "Show completed" : "Hide completed"}
           </button>
+          {user && (
+            <div className="user-menu-container" style={{ position: "relative" }}>
+              <button
+                className="user-avatar-btn"
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                title={user.name}
+              >
+                {user.name.charAt(0).toUpperCase()}
+              </button>
+              {showUserMenu && (
+                <div className="user-menu-dropdown">
+                  <div className="user-menu-info">
+                    <div className="user-menu-name">{user.name}</div>
+                    <div className="user-menu-email">{user.email}</div>
+                  </div>
+                  <div className="user-menu-divider" />
+                  <button className="user-menu-item" onClick={() => { setShowUserMenu(false); logout(); }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </header>
+
+      {/* Email verification banner */}
+      {user && !user.emailVerified && (
+        <div className="email-banner">
+          <span>Please verify your email address. Check your inbox for a verification link.</span>
+          <button
+            className="email-banner-resend"
+            onClick={async () => {
+              try {
+                const res = await fetch("/api/auth/resend-verification", { method: "POST" });
+                if (res.ok) {
+                  toast("Verification email sent!", "success");
+                } else {
+                  const data = await res.json();
+                  toast(data.error || "Failed to resend.", "error");
+                }
+              } catch {
+                toast("Failed to resend verification email.", "error");
+              }
+            }}
+          >
+            Resend
+          </button>
+        </div>
+      )}
 
       {/* Board / Gantt */}
       {viewMode === "gantt" ? (() => {

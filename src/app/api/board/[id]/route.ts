@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { broadcast } from "@/lib/event-bus";
+import { getSession } from "@/lib/session";
+import { isBoardOwner, addBoardOwnership } from "@/lib/auth";
 
 const BOARDS_DIR = path.join(process.cwd(), "data", "boards");
 
@@ -13,9 +15,20 @@ function ensureDir() {
 
 // GET /api/board/[id] — load a specific board
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  }
+
   ensureDir();
   const { id } = await params;
+
+  // Check ownership (allow if board file doesn't exist — new board)
   const filePath = path.join(BOARDS_DIR, `${id}.json`);
+  if (fs.existsSync(filePath) && !isBoardOwner(id, session.userId)) {
+    return NextResponse.json({ error: "Access denied." }, { status: 403 });
+  }
+
   if (!fs.existsSync(filePath)) {
     return NextResponse.json(null, { status: 404 });
   }
@@ -30,15 +43,28 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
 // PUT /api/board/[id] — save a specific board
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  }
+
   ensureDir();
   const { id } = await params;
   const body = await req.json();
   const clientId = req.headers.get("X-Client-Id") || "";
   const filePath = path.join(BOARDS_DIR, `${id}.json`);
 
+  // If board is new, assign ownership to current user
+  const isNew = !fs.existsSync(filePath);
+  if (isNew) {
+    addBoardOwnership(id, session.userId);
+  } else if (!isBoardOwner(id, session.userId)) {
+    return NextResponse.json({ error: "Access denied." }, { status: 403 });
+  }
+
   // Read current version from disk
   let diskVersion = 0;
-  if (fs.existsSync(filePath)) {
+  if (!isNew) {
     try {
       const raw = fs.readFileSync(filePath, "utf-8");
       const diskData = JSON.parse(raw);
@@ -71,8 +97,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
 // DELETE /api/board/[id] — delete a board
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  }
+
   ensureDir();
   const { id } = await params;
+
+  if (!isBoardOwner(id, session.userId)) {
+    return NextResponse.json({ error: "Access denied." }, { status: 403 });
+  }
+
   const filePath = path.join(BOARDS_DIR, `${id}.json`);
   if (fs.existsSync(filePath)) {
     fs.unlinkSync(filePath);
