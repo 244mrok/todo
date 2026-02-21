@@ -12,7 +12,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const userId = consumeEmailToken(token, "verify");
+    const userId = await consumeEmailToken(token, "verify");
     if (!userId) {
       return NextResponse.json(
         { error: "Invalid or expired verification link." },
@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       );
     }
 
-    markEmailVerified(userId);
+    await markEmailVerified(userId);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const token = createEmailToken(user.id, "verify");
+    const token = await createEmailToken(user.id, "verify");
     await sendVerificationEmail(user.email, token);
 
     return NextResponse.json({ ok: true });

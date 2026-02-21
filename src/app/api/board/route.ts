@@ -19,7 +19,7 @@ export async function GET() {
   }
 
   ensureDir();
-  const ownedBoardIds = new Set(getUserBoards(session.userId));
+  const ownedBoardIds = new Set(await getUserBoards(session.userId));
   const files = fs.readdirSync(BOARDS_DIR).filter(f => f.endsWith(".json"));
   const boards = files
     .filter(f => ownedBoardIds.has(f.replace(".json", "")))

@@ -24,10 +24,10 @@ export async function POST(req: Request) {
 
     if (!email) return successResponse;
 
-    const user = getUserByEmail(email);
+    const user = await getUserByEmail(email);
     if (!user) return successResponse;
 
-    const token = createEmailToken(user.id, "reset");
+    const token = await createEmailToken(user.id, "reset");
     await sendPasswordResetEmail(user.email, token);
 
     return successResponse;

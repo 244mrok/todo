@@ -17,7 +17,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   // Allow if board doesn't exist on disk yet (new unsaved board)
   const boardExists = fs.existsSync(path.join(BOARDS_DIR, `${boardId}.json`));
-  if (boardExists && !isBoardOwner(boardId, session.userId)) {
+  if (boardExists && !(await isBoardOwner(boardId, session.userId))) {
     return new Response("Access denied", { status: 403 });
   }
 

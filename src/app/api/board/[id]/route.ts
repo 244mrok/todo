@@ -24,7 +24,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   // Check ownership (allow if board file doesn't exist — new board)
   const filePath = path.join(BOARDS_DIR, `${id}.json`);
-  if (fs.existsSync(filePath) && !isBoardOwner(id, session.userId)) {
+  if (fs.existsSync(filePath) && !(await isBoardOwner(id, session.userId))) {
     return NextResponse.json({ error: "Access denied." }, { status: 403 });
   }
 
@@ -56,8 +56,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   // If board is new, assign ownership to current user
   const isNew = !fs.existsSync(filePath);
   if (isNew) {
-    addBoardOwnership(id, session.userId);
-  } else if (!isBoardOwner(id, session.userId)) {
+    await addBoardOwnership(id, session.userId);
+  } else if (!(await isBoardOwner(id, session.userId))) {
     return NextResponse.json({ error: "Access denied." }, { status: 403 });
   }
 
@@ -104,7 +104,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   ensureDir();
   const { id } = await params;
 
-  if (!isBoardOwner(id, session.userId)) {
+  if (!(await isBoardOwner(id, session.userId))) {
     return NextResponse.json({ error: "Access denied." }, { status: 403 });
   }
 

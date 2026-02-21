@@ -29,7 +29,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const userId = consumeEmailToken(token, "reset");
+    const userId = await consumeEmailToken(token, "reset");
     if (!userId) {
       return NextResponse.json(
         { error: "Invalid or expired reset link." },
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await hashPassword(password);
-    updatePassword(userId, passwordHash);
+    await updatePassword(userId, passwordHash);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

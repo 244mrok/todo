@@ -1,10 +1,9 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
-import { getDb, BOARDS_DIR } from "./db";
+import { getDb, initSchema, BOARDS_DIR } from "./db";
 import type { AuthUser, JwtPayload } from "@/types/auth";
 import fs from "fs";
-import path from "path";
 
 const SALT_ROUNDS = 12;
 
@@ -48,166 +47,193 @@ export function verifyJwt(token: string): JwtPayload | null {
 
 // ─── User CRUD ───
 
-export function createUser(
+export async function createUser(
   email: string,
   passwordHash: string,
   name: string,
-): AuthUser {
+): Promise<AuthUser> {
+  await initSchema();
   const db = getDb();
   const id = uuidv4();
   const now = new Date().toISOString();
 
-  db.prepare(
-    `INSERT INTO users (id, email, password_hash, name, email_verified, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 0, ?, ?)`,
-  ).run(id, email.toLowerCase(), passwordHash, name, now, now);
+  await db.execute({
+    sql: `INSERT INTO users (id, email, password_hash, name, email_verified, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 0, ?, ?)`,
+    args: [id, email.toLowerCase(), passwordHash, name, now, now],
+  });
 
   // If this is the first user, inherit all existing boards
-  const userCount = db.prepare("SELECT COUNT(*) as count FROM users").get() as {
-    count: number;
-  };
-  if (userCount.count === 1) {
-    inheritExistingBoards(id);
+  const countResult = await db.execute("SELECT COUNT(*) as count FROM users");
+  const userCount = Number(countResult.rows[0].count);
+  if (userCount === 1) {
+    await inheritExistingBoards(id);
   }
 
-  return { id, email: email.toLowerCase(), name, emailVerified: false, createdAt: now };
-}
-
-export function getUserByEmail(email: string) {
-  const db = getDb();
-  return db
-    .prepare("SELECT * FROM users WHERE email = ?")
-    .get(email.toLowerCase()) as
-    | {
-        id: string;
-        email: string;
-        password_hash: string;
-        name: string;
-        email_verified: number;
-        created_at: string;
-      }
-    | undefined;
-}
-
-export function getUserById(id: string): AuthUser | null {
-  const db = getDb();
-  const row = db.prepare("SELECT * FROM users WHERE id = ?").get(id) as
-    | {
-        id: string;
-        email: string;
-        name: string;
-        email_verified: number;
-        created_at: string;
-      }
-    | undefined;
-
-  if (!row) return null;
   return {
-    id: row.id,
-    email: row.email,
-    name: row.name,
-    emailVerified: row.email_verified === 1,
-    createdAt: row.created_at,
+    id,
+    email: email.toLowerCase(),
+    name,
+    emailVerified: false,
+    createdAt: now,
   };
 }
 
-export function markEmailVerified(userId: string) {
+export async function getUserByEmail(email: string) {
+  await initSchema();
   const db = getDb();
-  db.prepare(
-    "UPDATE users SET email_verified = 1, updated_at = datetime('now') WHERE id = ?",
-  ).run(userId);
+  const result = await db.execute({
+    sql: "SELECT * FROM users WHERE email = ?",
+    args: [email.toLowerCase()],
+  });
+
+  if (result.rows.length === 0) return undefined;
+  const row = result.rows[0];
+  return {
+    id: row.id as string,
+    email: row.email as string,
+    password_hash: row.password_hash as string,
+    name: row.name as string,
+    email_verified: row.email_verified as number,
+    created_at: row.created_at as string,
+  };
 }
 
-export function updatePassword(userId: string, passwordHash: string) {
+export async function getUserById(id: string): Promise<AuthUser | null> {
+  await initSchema();
   const db = getDb();
-  db.prepare(
-    "UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?",
-  ).run(passwordHash, userId);
+  const result = await db.execute({
+    sql: "SELECT * FROM users WHERE id = ?",
+    args: [id],
+  });
+
+  if (result.rows.length === 0) return null;
+  const row = result.rows[0];
+  return {
+    id: row.id as string,
+    email: row.email as string,
+    name: row.name as string,
+    emailVerified: (row.email_verified as number) === 1,
+    createdAt: row.created_at as string,
+  };
+}
+
+export async function markEmailVerified(userId: string) {
+  await initSchema();
+  const db = getDb();
+  await db.execute({
+    sql: "UPDATE users SET email_verified = 1, updated_at = datetime('now') WHERE id = ?",
+    args: [userId],
+  });
+}
+
+export async function updatePassword(userId: string, passwordHash: string) {
+  await initSchema();
+  const db = getDb();
+  await db.execute({
+    sql: "UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?",
+    args: [passwordHash, userId],
+  });
 }
 
 // ─── Email Tokens ───
 
-export function createEmailToken(
+export async function createEmailToken(
   userId: string,
   type: "verify" | "reset",
-): string {
+): Promise<string> {
+  await initSchema();
   const db = getDb();
   const id = uuidv4();
   const token = uuidv4();
   const hours = type === "verify" ? 24 : 1;
-  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
+  const expiresAt = new Date(
+    Date.now() + hours * 60 * 60 * 1000,
+  ).toISOString();
 
   // Invalidate previous tokens of the same type for this user
-  db.prepare(
-    "UPDATE email_tokens SET used = 1 WHERE user_id = ? AND type = ? AND used = 0",
-  ).run(userId, type);
+  await db.execute({
+    sql: "UPDATE email_tokens SET used = 1 WHERE user_id = ? AND type = ? AND used = 0",
+    args: [userId, type],
+  });
 
-  db.prepare(
-    `INSERT INTO email_tokens (id, user_id, type, token, expires_at, used)
-     VALUES (?, ?, ?, ?, ?, 0)`,
-  ).run(id, userId, type, token, expiresAt);
+  await db.execute({
+    sql: `INSERT INTO email_tokens (id, user_id, type, token, expires_at, used)
+          VALUES (?, ?, ?, ?, ?, 0)`,
+    args: [id, userId, type, token, expiresAt],
+  });
 
   return token;
 }
 
-export function consumeEmailToken(
+export async function consumeEmailToken(
   token: string,
   type: "verify" | "reset",
-): string | null {
+): Promise<string | null> {
+  await initSchema();
   const db = getDb();
-  const row = db
-    .prepare(
-      "SELECT * FROM email_tokens WHERE token = ? AND type = ? AND used = 0",
-    )
-    .get(token, type) as
-    | { id: string; user_id: string; expires_at: string }
-    | undefined;
+  const result = await db.execute({
+    sql: "SELECT * FROM email_tokens WHERE token = ? AND type = ? AND used = 0",
+    args: [token, type],
+  });
 
-  if (!row) return null;
-  if (new Date(row.expires_at) < new Date()) return null;
+  if (result.rows.length === 0) return null;
+  const row = result.rows[0];
+  if (new Date(row.expires_at as string) < new Date()) return null;
 
-  db.prepare("UPDATE email_tokens SET used = 1 WHERE id = ?").run(row.id);
-  return row.user_id;
+  await db.execute({
+    sql: "UPDATE email_tokens SET used = 1 WHERE id = ?",
+    args: [row.id as string],
+  });
+
+  return row.user_id as string;
 }
 
 // ─── Board Ownership ───
 
-export function addBoardOwnership(boardId: string, userId: string) {
+export async function addBoardOwnership(boardId: string, userId: string) {
+  await initSchema();
   const db = getDb();
-  db.prepare(
-    "INSERT OR IGNORE INTO board_ownership (board_id, user_id, role) VALUES (?, ?, 'owner')",
-  ).run(boardId, userId);
+  await db.execute({
+    sql: "INSERT OR IGNORE INTO board_ownership (board_id, user_id, role) VALUES (?, ?, 'owner')",
+    args: [boardId, userId],
+  });
 }
 
-export function getUserBoards(userId: string): string[] {
+export async function getUserBoards(userId: string): Promise<string[]> {
+  await initSchema();
   const db = getDb();
-  const rows = db
-    .prepare("SELECT board_id FROM board_ownership WHERE user_id = ?")
-    .all(userId) as { board_id: string }[];
-  return rows.map((r) => r.board_id);
+  const result = await db.execute({
+    sql: "SELECT board_id FROM board_ownership WHERE user_id = ?",
+    args: [userId],
+  });
+  return result.rows.map((r) => r.board_id as string);
 }
 
-export function isBoardOwner(boardId: string, userId: string): boolean {
+export async function isBoardOwner(
+  boardId: string,
+  userId: string,
+): Promise<boolean> {
+  await initSchema();
   const db = getDb();
-  const row = db
-    .prepare(
-      "SELECT 1 FROM board_ownership WHERE board_id = ? AND user_id = ?",
-    )
-    .get(boardId, userId);
-  return !!row;
+  const result = await db.execute({
+    sql: "SELECT 1 FROM board_ownership WHERE board_id = ? AND user_id = ?",
+    args: [boardId, userId],
+  });
+  return result.rows.length > 0;
 }
 
-function inheritExistingBoards(userId: string) {
+async function inheritExistingBoards(userId: string) {
   if (!fs.existsSync(BOARDS_DIR)) return;
 
   const files = fs.readdirSync(BOARDS_DIR).filter((f) => f.endsWith(".json"));
   const db = getDb();
-  const stmt = db.prepare(
-    "INSERT OR IGNORE INTO board_ownership (board_id, user_id, role) VALUES (?, ?, 'owner')",
-  );
 
   for (const file of files) {
     const boardId = file.replace(".json", "");
-    stmt.run(boardId, userId);
+    await db.execute({
+      sql: "INSERT OR IGNORE INTO board_ownership (board_id, user_id, role) VALUES (?, ?, 'owner')",
+      args: [boardId, userId],
+    });
   }
 }

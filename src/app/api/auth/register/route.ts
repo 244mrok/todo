@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const existing = getUserByEmail(email);
+    const existing = await getUserByEmail(email);
     if (existing) {
       return NextResponse.json(
         { error: "An account with this email already exists." },
@@ -45,9 +45,9 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await hashPassword(password);
-    const user = createUser(email, passwordHash, name);
+    const user = await createUser(email, passwordHash, name);
 
-    const token = createEmailToken(user.id, "verify");
+    const token = await createEmailToken(user.id, "verify");
     await sendVerificationEmail(email, token);
 
     await createSessionCookie(user.id, user.email);
