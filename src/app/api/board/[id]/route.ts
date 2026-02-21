@@ -4,8 +4,7 @@ import path from "path";
 import { broadcast } from "@/lib/event-bus";
 import { getSession } from "@/lib/session";
 import { isBoardOwner, addBoardOwnership } from "@/lib/auth";
-
-const BOARDS_DIR = path.join(process.cwd(), "data", "boards");
+import { BOARDS_DIR } from "@/lib/db";
 
 function ensureDir() {
   if (!fs.existsSync(BOARDS_DIR)) {

@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
-import { getDb } from "./db";
+import { getDb, BOARDS_DIR } from "./db";
 import type { AuthUser, JwtPayload } from "@/types/auth";
 import fs from "fs";
 import path from "path";
@@ -198,10 +198,9 @@ export function isBoardOwner(boardId: string, userId: string): boolean {
 }
 
 function inheritExistingBoards(userId: string) {
-  const boardsDir = path.join(process.cwd(), "data", "boards");
-  if (!fs.existsSync(boardsDir)) return;
+  if (!fs.existsSync(BOARDS_DIR)) return;
 
-  const files = fs.readdirSync(boardsDir).filter((f) => f.endsWith(".json"));
+  const files = fs.readdirSync(BOARDS_DIR).filter((f) => f.endsWith(".json"));
   const db = getDb();
   const stmt = db.prepare(
     "INSERT OR IGNORE INTO board_ownership (board_id, user_id, role) VALUES (?, ?, 'owner')",

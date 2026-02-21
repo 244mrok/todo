@@ -1,12 +1,11 @@
 import { subscribe } from "@/lib/event-bus";
 import { getSession } from "@/lib/session";
 import { isBoardOwner } from "@/lib/auth";
+import { BOARDS_DIR } from "@/lib/db";
 import fs from "fs";
 import path from "path";
 
 export const dynamic = "force-dynamic";
-
-const BOARDS_DIR = path.join(process.cwd(), "data", "boards");
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();

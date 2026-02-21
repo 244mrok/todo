@@ -3,8 +3,7 @@ import fs from "fs";
 import path from "path";
 import { getSession } from "@/lib/session";
 import { getUserBoards } from "@/lib/auth";
-
-const BOARDS_DIR = path.join(process.cwd(), "data", "boards");
+import { BOARDS_DIR } from "@/lib/db";
 
 function ensureDir() {
   if (!fs.existsSync(BOARDS_DIR)) {

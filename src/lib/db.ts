@@ -3,9 +3,10 @@ import path from "path";
 import fs from "fs";
 
 const isVercel = !!process.env.VERCEL;
-const DB_PATH = isVercel
-  ? path.join("/tmp", "auth.db")
-  : path.join(process.cwd(), "data", "auth.db");
+const DATA_DIR = isVercel ? "/tmp" : path.join(process.cwd(), "data");
+const DB_PATH = path.join(DATA_DIR, "auth.db");
+
+export const BOARDS_DIR = path.join(DATA_DIR, "boards");
 
 let db: Database.Database | null = null;
 
