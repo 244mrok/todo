@@ -1463,3 +1463,311 @@ body {
   color: #8c96a5;
   text-align: center;
 }
+
+/* ===== MOVE PICKER (touch DnD alternative) ===== */
+.move-picker {
+  position: absolute;
+  left: 0;
+  top: 100%;
+  margin-top: 4px;
+  width: 250px;
+  background: white;
+  border-radius: 8px;
+  padding: 12px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  z-index: 10;
+}
+
+.move-picker-title {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5e6c84;
+  margin-bottom: 8px;
+}
+
+.move-picker-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #172b4d;
+  cursor: pointer;
+  font-family: inherit;
+}
+.move-picker-item:hover {
+  background: rgba(9, 30, 66, 0.08);
+}
+
+/* ===== TABLET BREAKPOINT (768px) ===== */
+@media (max-width: 768px) {
+  /* Header: hide button text, keep icons */
+  .header-toggle-btn {
+    padding: 8px;
+    gap: 0;
+    min-height: 44px;
+    min-width: 44px;
+    justify-content: center;
+    font-size: 0;
+  }
+  .header-toggle-btn svg {
+    flex-shrink: 0;
+  }
+
+  /* View toggle: icons only */
+  .view-toggle-btn {
+    padding: 8px;
+    gap: 0;
+    min-height: 44px;
+    min-width: 44px;
+    justify-content: center;
+    font-size: 0;
+  }
+  .view-toggle-btn svg {
+    flex-shrink: 0;
+  }
+
+  /* Lists: slightly narrower */
+  .list-wrapper {
+    width: 260px;
+    min-width: 260px;
+  }
+  .add-list-btn,
+  .add-list-form {
+    min-width: 260px;
+  }
+
+  /* Touch targets: min 44px height */
+  .sidebar-btn {
+    min-height: 44px;
+  }
+  .card-checkbox {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+  }
+  .list-menu-btn {
+    min-height: 44px;
+    min-width: 44px;
+    justify-content: center;
+  }
+  .add-card-btn {
+    min-height: 44px;
+  }
+  .btn-primary {
+    min-height: 44px;
+  }
+  .modal-close {
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .board-picker-item {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+  .board-picker-delete {
+    opacity: 1;
+    min-height: 44px;
+    min-width: 44px;
+    justify-content: center;
+  }
+
+  /* Pickers: fixed center overlays */
+  .date-picker,
+  .label-picker,
+  .move-picker {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    margin-top: 0;
+    width: 300px;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 1100;
+  }
+
+  /* Modal: reduce padding */
+  .modal-overlay {
+    padding: 24px 8px 40px;
+  }
+  .modal-content {
+    padding: 16px;
+  }
+
+  /* Disable grab cursors, use pointer */
+  .card[draggable="true"] {
+    cursor: pointer;
+  }
+  .card[draggable="true"]:active {
+    cursor: pointer;
+    opacity: 1;
+    transform: none;
+  }
+  .list-header {
+    cursor: default;
+  }
+  .list-header:active {
+    cursor: default;
+  }
+  .gantt-bar {
+    cursor: pointer;
+  }
+}
+
+/* ===== PHONE BREAKPOINT (480px) ===== */
+@media (max-width: 480px) {
+  /* Header: wrap to 2 rows */
+  .board-header {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 6px 10px;
+  }
+  .board-header-left {
+    flex: 1;
+    min-width: 0;
+  }
+  .project-name {
+    font-size: 16px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 50vw;
+    display: block;
+  }
+  .project-name-input {
+    font-size: 16px;
+    min-width: 150px;
+    max-width: 60vw;
+  }
+  .board-header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  /* Board: scroll snap for swipe UX */
+  .board-canvas {
+    padding: 8px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  .board-lists {
+    gap: 8px;
+  }
+  .list-wrapper {
+    width: 85vw;
+    min-width: 85vw;
+    scroll-snap-align: center;
+  }
+  .add-list-btn,
+  .add-list-form {
+    min-width: 85vw;
+    scroll-snap-align: center;
+  }
+
+  /* Card modal: full screen */
+  .modal-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+  .modal-content {
+    border-radius: 0;
+    min-height: 100vh;
+    max-width: 100%;
+    padding: 16px 12px;
+  }
+  .modal-title-input {
+    font-size: 18px;
+  }
+  .modal-header {
+    padding-right: 40px;
+    margin-bottom: 16px;
+  }
+
+  /* Board picker: bottom sheet */
+  .board-picker {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    width: 100%;
+    margin-top: 0;
+    border-radius: 16px 16px 0 0;
+    padding: 12px 16px 24px;
+    max-height: 60vh;
+    overflow-y: auto;
+    z-index: 200;
+    animation: slideUp 0.2s ease-out;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  /* Sidebar actions: 2-column grid */
+  .modal-sidebar-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  /* All inputs: 16px font to prevent iOS auto-zoom */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Card checkboxes: larger for touch */
+  .card-checkbox {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+  }
+  .card-checkbox svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* Gantt: smaller label font for narrow screens */
+  .gantt-row-label {
+    font-size: 11px;
+  }
+  .gantt-label-col {
+    font-size: 10px;
+  }
+
+  /* Pickers on phone: also bottom sheet style */
+  .date-picker,
+  .label-picker,
+  .move-picker {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    transform: none;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding: 12px 16px 24px;
+    max-height: 70vh;
+    overflow-y: auto;
+    animation: slideUp 0.2s ease-out;
+  }
+
+  /* Shortcut help: full width on phone */
+  .shortcut-help-content {
+    border-radius: 8px;
+    padding: 20px 16px;
+  }
+}

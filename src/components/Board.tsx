@@ -160,6 +160,7 @@ export default function Board() {
   const [showLabelPicker, setShowLabelPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showMovePicker, setShowMovePicker] = useState(false);
   const [editDesc, setEditDesc] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
   const [viewMode, setViewMode] = useState<"board" | "gantt">("board");
@@ -313,6 +314,22 @@ export default function Board() {
       };
     });
     setEditingCard(null);
+  }, [setBoardAndSave]);
+
+  const moveCardToList = useCallback((cardId: string, targetListId: string) => {
+    setBoardAndSave(prev => ({
+      ...prev,
+      lists: prev.lists.map(l => {
+        if (l.cardIds.includes(cardId) && l.id !== targetListId) {
+          return { ...l, cardIds: l.cardIds.filter(id => id !== cardId) };
+        }
+        if (l.id === targetListId && !l.cardIds.includes(cardId)) {
+          return { ...l, cardIds: [...l.cardIds, cardId] };
+        }
+        return l;
+      }),
+    }));
+    setShowMovePicker(false);
   }, [setBoardAndSave]);
 
   // ===================== DRAG & DROP =====================
@@ -738,6 +755,7 @@ export default function Board() {
         setShowLabelPicker(false);
         setShowDatePicker(false);
         setShowStartDatePicker(false);
+        setShowMovePicker(false);
         return;
       }
 
@@ -1395,9 +1413,9 @@ export default function Board() {
       {editingCard && (() => {
         const parentList = getListForCard(editingCard.id);
         return (
-          <div className="modal-overlay" onClick={() => { setEditingCard(null); setEditDesc(false); setShowLabelPicker(false); setShowDatePicker(false); setShowStartDatePicker(false); }}>
+          <div className="modal-overlay" onClick={() => { setEditingCard(null); setEditDesc(false); setShowLabelPicker(false); setShowDatePicker(false); setShowStartDatePicker(false); setShowMovePicker(false); }}>
             <div className="modal-content" onClick={e => e.stopPropagation()}>
-              <button className="modal-close" onClick={() => { setEditingCard(null); setEditDesc(false); setShowLabelPicker(false); setShowDatePicker(false); setShowStartDatePicker(false); }}>
+              <button className="modal-close" onClick={() => { setEditingCard(null); setEditDesc(false); setShowLabelPicker(false); setShowDatePicker(false); setShowStartDatePicker(false); setShowMovePicker(false); }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
@@ -1622,6 +1640,37 @@ export default function Board() {
                               <button className="btn-text" onClick={() => { updateCard({ ...editingCard, dueDate: "" }); setShowDatePicker(false); }}>Remove</button>
                             )}
                           </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Move to list */}
+                    <div style={{ position: "relative" }}>
+                      <button className="sidebar-btn" onClick={() => setShowMovePicker(!showMovePicker)}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                        </svg>
+                        Move
+                      </button>
+                      {showMovePicker && (
+                        <div className="move-picker">
+                          <p className="move-picker-title">Move to list</p>
+                          {board.lists
+                            .filter(l => !l.cardIds.includes(editingCard.id))
+                            .map(l => (
+                              <button
+                                key={l.id}
+                                className="move-picker-item"
+                                onClick={() => moveCardToList(editingCard.id, l.id)}
+                              >
+                                {l.title}
+                              </button>
+                            ))}
+                          {board.lists.filter(l => !l.cardIds.includes(editingCard.id)).length === 0 && (
+                            <p style={{ fontSize: 13, color: "#8c8c8c", textAlign: "center", padding: "8px 0" }}>
+                              No other lists
+                            </p>
+                          )}
                         </div>
                       )}
                     </div>
