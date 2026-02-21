@@ -3,14 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import type { BoardData, Card } from "@/types/board";
 import { LABEL_COLORS } from "@/types/board";
-
-function newBoardId() {
-  return "board-" + Date.now();
-}
-
-function createEmptyBoard(): BoardData {
-  return { id: newBoardId(), name: "New Project", lists: [], cards: {}, labelNames: {} };
-}
+import { createEmptyBoard, getVisibleCardIds as getVisibleCardIdsUtil, getListForCard as getListForCardUtil, getLabelName as getLabelNameUtil } from "@/lib/board-utils";
 
 export default function Board() {
   const [board, setBoard] = useState<BoardData>(createEmptyBoard);
@@ -495,30 +488,13 @@ export default function Board() {
     }));
   }, [setBoardAndSave]);
 
-  const getLabelName = (color: string) => board.labelNames?.[color] || "";
+  const getLabelName = (color: string) => getLabelNameUtil(board, color);
 
   // ===================== HELPERS =====================
 
-  const getListForCard = (cardId: string) => board.lists.find(l => l.cardIds.includes(cardId));
+  const getListForCard = (cardId: string) => getListForCardUtil(board, cardId);
 
-  /** Sort: incomplete cards in original order first, then completed cards by completedAt descending */
-  const getSortedCardIds = (cardIds: string[]) => {
-    const incomplete = cardIds.filter(id => !board.cards[id]?.completed);
-    const completed = cardIds
-      .filter(id => board.cards[id]?.completed)
-      .sort((a, b) => {
-        const aTime = board.cards[a]?.completedAt ? new Date(board.cards[a].completedAt).getTime() : 0;
-        const bTime = board.cards[b]?.completedAt ? new Date(board.cards[b].completedAt).getTime() : 0;
-        return bTime - aTime; // newest completed first
-      });
-    return [...incomplete, ...completed];
-  };
-
-  const getVisibleCardIds = (cardIds: string[]) => {
-    const sorted = getSortedCardIds(cardIds);
-    if (hideCompleted) return sorted.filter(id => !board.cards[id]?.completed);
-    return sorted;
-  };
+  const getVisibleCardIds = (cardIds: string[]) => getVisibleCardIdsUtil(cardIds, board.cards, hideCompleted);
 
   // ===================== BOARD KEYBOARD SHORTCUTS =====================
 
