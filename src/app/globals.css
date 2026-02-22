@@ -1379,6 +1379,20 @@ body {
   box-shadow: 0 1px 4px rgba(235, 90, 70, 0.35);
 }
 
+.gantt-bar-creating {
+  background: rgba(56, 132, 255, 0.25);
+  border: 2px dashed #3884ff;
+  pointer-events: none;
+}
+
+.gantt-row-bar-area {
+  cursor: crosshair;
+}
+
+.gantt-row-empty {
+  min-height: 28px;
+}
+
 /* ===== KEYBOARD FOCUS ===== */
 .list-header.kb-focused {
   box-shadow: 0 0 0 2px #0079bf;

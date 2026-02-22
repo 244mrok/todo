@@ -226,6 +226,21 @@ export default function Board() {
   } | null>(null);
   const [ganttDragPreview, setGanttDragPreview] = useState<{ cardId: string; left: number; width: number } | null>(null);
 
+  // Gantt create drag state (click-to-create on empty timeline space)
+  const ganttCreateDrag = useRef<{
+    listId: string;
+    startX: number;
+    startLeft: number;
+    rangeStartTime: number;
+    dayWidth: number;
+    moved: boolean;
+  } | null>(null);
+  const [ganttCreatePreview, setGanttCreatePreview] = useState<{
+    listId: string;
+    left: number;
+    width: number;
+  } | null>(null);
+
   // Refs
   const addListInputRef = useRef<HTMLInputElement>(null);
   const addCardInputRef = useRef<HTMLTextAreaElement>(null);
@@ -561,6 +576,106 @@ export default function Board() {
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
   }, [setBoardAndSave]);
+
+  // ===================== GANTT CLICK-TO-CREATE =====================
+
+  const handleGanttCreateMouseDown = useCallback((
+    e: React.MouseEvent,
+    listId: string,
+    rangeStartTime: number,
+    dw: number,
+  ) => {
+    const barArea = e.currentTarget as HTMLElement;
+    const rect = barArea.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const snappedLeft = Math.floor(px / dw) * dw;
+
+    ganttCreateDrag.current = {
+      listId,
+      startX: e.clientX,
+      startLeft: snappedLeft,
+      rangeStartTime,
+      dayWidth: dw,
+      moved: false,
+    };
+    setGanttCreatePreview({ listId, left: snappedLeft, width: dw });
+
+    const onMouseMove = (ev: MouseEvent) => {
+      const drag = ganttCreateDrag.current;
+      if (!drag) return;
+      const dx = ev.clientX - drag.startX;
+      if (Math.abs(dx) > 3) drag.moved = true;
+
+      if (dx >= 0) {
+        const snappedWidth = Math.max(drag.dayWidth, Math.ceil(dx / drag.dayWidth) * drag.dayWidth + drag.dayWidth);
+        setGanttCreatePreview({ listId: drag.listId, left: drag.startLeft, width: snappedWidth });
+      } else {
+        const snappedLeft2 = Math.floor((px + dx) / drag.dayWidth) * drag.dayWidth;
+        const left = Math.max(0, snappedLeft2);
+        const width = drag.startLeft - left + drag.dayWidth;
+        setGanttCreatePreview({ listId: drag.listId, left, width: Math.max(drag.dayWidth, width) });
+      }
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      const drag = ganttCreateDrag.current;
+      ganttCreateDrag.current = null;
+
+      if (!drag) { setGanttCreatePreview(null); return; }
+
+      setGanttCreatePreview(prev => {
+        if (!prev) return null;
+
+        const pixelToDate = (pxVal: number): string => {
+          const dayOffset = Math.round(pxVal / drag.dayWidth);
+          const d = new Date(drag.rangeStartTime);
+          d.setDate(d.getDate() + dayOffset);
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, "0");
+          const dd = String(d.getDate()).padStart(2, "0");
+          return `${y}-${m}-${dd}`;
+        };
+
+        const startDate = pixelToDate(prev.left);
+        const endDayOffset = Math.round((prev.left + prev.width) / drag.dayWidth) - 1;
+        const endD = new Date(drag.rangeStartTime);
+        endD.setDate(endD.getDate() + endDayOffset);
+        const ey = endD.getFullYear();
+        const em = String(endD.getMonth() + 1).padStart(2, "0");
+        const edd = String(endD.getDate()).padStart(2, "0");
+        const dueDate = `${ey}-${em}-${edd}`;
+
+        const cardId = "card-" + Date.now();
+        const newCard: Card = {
+          id: cardId,
+          title: "",
+          description: "",
+          labels: [],
+          startDate,
+          dueDate,
+          completed: false,
+          completedAt: "",
+          createdAt: new Date().toISOString(),
+        };
+
+        setBoardAndSave(board => ({
+          ...board,
+          cards: { ...board.cards, [cardId]: newCard },
+          lists: board.lists.map(l =>
+            l.id === drag.listId ? { ...l, cardIds: [...l.cardIds, cardId] } : l
+          ),
+        }));
+
+        openCardModal(newCard);
+        return null;
+      });
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }, [setBoardAndSave, openCardModal]);
 
   // ===================== LABEL ACTIONS =====================
 
@@ -1047,20 +1162,15 @@ export default function Board() {
             if (!minDate || sd < minDate) minDate = sd;
             if (!maxDate || ed > maxDate) maxDate = ed;
           }
-          if (cards.length > 0) {
-            ganttLists.push({ listId: list.id, listTitle: list.title, cards });
-          }
+          ganttLists.push({ listId: list.id, listTitle: list.title, cards });
         }
 
         // Add padding around date range
         if (!minDate || !maxDate) {
-          // No cards with dates — show empty state
-          return (
-            <div className="gantt-empty">
-              <p>No cards with dates to display.</p>
-              <p>Add a start date and due date to cards to see them on the timeline.</p>
-            </div>
-          );
+          minDate = new Date(today);
+          minDate.setDate(minDate.getDate() - 7);
+          maxDate = new Date(today);
+          maxDate.setDate(maxDate.getDate() + 23);
         }
 
         const rangeStart = new Date(minDate);
@@ -1141,7 +1251,9 @@ export default function Board() {
 
               {/* Body */}
               <div className="gantt-body" style={{ width: labelWidth + totalWidth }}>
-                {ganttLists.map(({ listId, listTitle, cards }) => (
+                {ganttLists.map(({ listId, listTitle, cards }) => {
+                  const rangeStartTime = rangeStart.getTime();
+                  return (
                   <div key={listId} className="gantt-list-group">
                     <div className="gantt-list-header" style={{ width: labelWidth + totalWidth }}>
                       <span className="gantt-list-header-text" style={{ width: labelWidth, minWidth: labelWidth }}>{listTitle}</span>
@@ -1160,7 +1272,6 @@ export default function Board() {
                         : isOverdue
                           ? "gantt-bar-overdue"
                           : "gantt-bar-active";
-                      const rangeStartTime = rangeStart.getTime();
 
                       return (
                         <div key={card.id} className="gantt-row" style={{ width: labelWidth + totalWidth }}>
@@ -1177,6 +1288,7 @@ export default function Board() {
                           </div>
                           <div
                             className="gantt-row-bar-area"
+                            onMouseDown={e => handleGanttCreateMouseDown(e, listId, rangeStartTime, dayWidth)}
                             style={{
                               width: totalWidth, minWidth: totalWidth,
                               position: "relative",
@@ -1186,6 +1298,12 @@ export default function Board() {
                             {/* Today line inside bar area */}
                             {showTodayLine && (
                               <div className="gantt-today-line" style={{ left: todayLineLeft }} />
+                            )}
+                            {ganttCreatePreview?.listId === listId && (
+                              <div
+                                className="gantt-bar gantt-bar-creating"
+                                style={{ left: ganttCreatePreview.left, width: ganttCreatePreview.width }}
+                              />
                             )}
                             <div
                               className={`gantt-bar ${barClass} ${isDragging ? "gantt-bar-dragging" : ""}`}
@@ -1207,8 +1325,38 @@ export default function Board() {
                         </div>
                       );
                     })}
+                    {/* Empty row for click-to-create when list has no dated cards, or as extra create target */}
+                    <div className="gantt-row gantt-row-empty" style={{ width: labelWidth + totalWidth }}>
+                      <div
+                        className="gantt-row-label"
+                        style={{ width: labelWidth, minWidth: labelWidth, opacity: cards.length === 0 ? 0.5 : 0.3, fontStyle: "italic", fontSize: 12 }}
+                      >
+                        {cards.length === 0 ? "Click timeline to add..." : ""}
+                      </div>
+                      <div
+                        className="gantt-row-bar-area"
+                        onMouseDown={e => handleGanttCreateMouseDown(e, listId, rangeStartTime, dayWidth)}
+                        style={{
+                          width: totalWidth, minWidth: totalWidth,
+                          position: "relative",
+                          backgroundImage: gridBg, backgroundSize: `${totalWidth}px 100%`,
+                          cursor: "crosshair",
+                        }}
+                      >
+                        {showTodayLine && (
+                          <div className="gantt-today-line" style={{ left: todayLineLeft }} />
+                        )}
+                        {ganttCreatePreview?.listId === listId && (
+                          <div
+                            className="gantt-bar gantt-bar-creating"
+                            style={{ left: ganttCreatePreview.left, width: ganttCreatePreview.width }}
+                          />
+                        )}
+                      </div>
+                    </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -1497,6 +1645,8 @@ export default function Board() {
                     className="modal-title-input"
                     value={editingCard.title}
                     onChange={e => updateCard({ ...editingCard, title: e.target.value })}
+                    autoFocus={!editingCard.title}
+                    placeholder="Enter card title..."
                   />
                   {parentList && <p className="modal-subtitle">in list <strong>{parentList.title}</strong></p>}
                 </div>
