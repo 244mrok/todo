@@ -7,6 +7,52 @@ import { createEmptyBoard, getVisibleCardIds as getVisibleCardIdsUtil, getListFo
 import { useBoardSync } from "@/hooks/useBoardSync";
 import { useAuth } from "@/components/AuthProvider";
 
+function parseCSV(text: string): string[][] {
+  const rows: string[][] = [];
+  let i = 0;
+  while (i < text.length) {
+    const row: string[] = [];
+    while (i < text.length) {
+      let value = "";
+      if (text[i] === '"') {
+        // Quoted field
+        i++;
+        while (i < text.length) {
+          if (text[i] === '"') {
+            if (i + 1 < text.length && text[i + 1] === '"') {
+              value += '"';
+              i += 2;
+            } else {
+              i++; // closing quote
+              break;
+            }
+          } else {
+            value += text[i];
+            i++;
+          }
+        }
+      } else {
+        // Unquoted field
+        while (i < text.length && text[i] !== ',' && text[i] !== '\r' && text[i] !== '\n') {
+          value += text[i];
+          i++;
+        }
+      }
+      row.push(value);
+      if (i < text.length && text[i] === ',') {
+        i++;
+        continue;
+      }
+      break;
+    }
+    // Consume line ending
+    if (i < text.length && text[i] === '\r') i++;
+    if (i < text.length && text[i] === '\n') i++;
+    rows.push(row);
+  }
+  return rows;
+}
+
 export default function Board() {
   const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -256,6 +302,7 @@ export default function Board() {
   editingCardRef.current = editingCard;
   const addListInputRef = useRef<HTMLInputElement>(null);
   const addCardInputRef = useRef<HTMLTextAreaElement>(null);
+  const csvFileInputRef = useRef<HTMLInputElement>(null);
 
   // ===================== KEYBOARD NAVIGATION =====================
 
@@ -809,6 +856,126 @@ export default function Board() {
 
   const getVisibleCardIds = (cardIds: string[]) => getVisibleCardIdsUtil(cardIds, board.cards, hideCompleted);
 
+  // ===================== CSV EXPORT / IMPORT =====================
+
+  const exportCSV = useCallback(() => {
+    const escapeField = (val: string) => {
+      if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+        return '"' + val.replace(/"/g, '""') + '"';
+      }
+      return val;
+    };
+    const header = ['List', 'Title', 'Description', 'Labels', 'Start Date', 'Due Date', 'Completed'];
+    const rows: string[] = [header.join(',')];
+    for (const list of board.lists) {
+      for (const cardId of list.cardIds) {
+        const card = board.cards[cardId];
+        if (!card) continue;
+        const labels = card.labels.map(c => getLabelNameUtil(board, c) || c).join(';');
+        rows.push([
+          escapeField(list.title),
+          escapeField(card.title),
+          escapeField(card.description),
+          escapeField(labels),
+          card.startDate || '',
+          card.dueDate || '',
+          card.completed ? 'Yes' : 'No',
+        ].join(','));
+      }
+    }
+    const csv = '\uFEFF' + rows.join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (board.name || 'board') + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [board]);
+
+  const importCSV = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      let text = ev.target?.result as string;
+      if (!text) return;
+      // Strip BOM
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+      const rows = parseCSV(text);
+      if (rows.length < 2) return;
+      const headerRow = rows[0].map(h => h.trim().toLowerCase());
+      const col = (name: string) => headerRow.indexOf(name);
+      const titleIdx = col('title');
+      if (titleIdx === -1) { alert('CSV must have a "Title" column.'); return; }
+      const listIdx = col('list');
+      const descIdx = col('description');
+      const labelsIdx = col('labels');
+      const startIdx = col('start date');
+      const dueIdx = col('due date');
+      const compIdx = col('completed');
+
+      setBoardAndSave(prev => {
+        const newLists = prev.lists.map(l => ({ ...l, cardIds: [...l.cardIds] }));
+        const newCards = { ...prev.cards };
+
+        // Build reverse label map: display name (lowercase) → color key
+        const labelReverseMap: Record<string, string> = {};
+        for (const colorKey of Object.keys(LABEL_COLORS)) {
+          const displayName = prev.labelNames?.[colorKey];
+          if (displayName) labelReverseMap[displayName.toLowerCase()] = colorKey;
+          labelReverseMap[colorKey.toLowerCase()] = colorKey;
+        }
+
+        // Build list name → index map (case-insensitive)
+        const listMap: Record<string, number> = {};
+        newLists.forEach((l, i) => { listMap[l.title.toLowerCase()] = i; });
+
+        for (let r = 1; r < rows.length; r++) {
+          const row = rows[r];
+          const title = (row[titleIdx] || '').trim();
+          if (!title) continue;
+          const cardId = Date.now() + '-' + r;
+          const card: Card = {
+            id: cardId,
+            title,
+            description: descIdx >= 0 ? (row[descIdx] || '').trim() : '',
+            labels: [],
+            startDate: startIdx >= 0 ? (row[startIdx] || '').trim() : '',
+            dueDate: dueIdx >= 0 ? (row[dueIdx] || '').trim() : '',
+            completed: compIdx >= 0 ? (row[compIdx] || '').trim().toLowerCase() === 'yes' : false,
+            completedAt: '',
+            createdAt: new Date().toISOString(),
+          };
+          if (card.completed) card.completedAt = new Date().toISOString();
+          // Parse labels
+          if (labelsIdx >= 0 && row[labelsIdx]) {
+            card.labels = row[labelsIdx].split(';').map(s => s.trim()).filter(Boolean)
+              .map(s => labelReverseMap[s.toLowerCase()] || s)
+              .filter(s => s in LABEL_COLORS);
+          }
+          // Find or create list
+          const listName = listIdx >= 0 ? (row[listIdx] || '').trim() : '';
+          const targetName = listName || 'Imported';
+          const key = targetName.toLowerCase();
+          let listIndex = listMap[key];
+          if (listIndex === undefined) {
+            const newList = { id: 'list-import-' + Date.now() + '-' + r, title: targetName, cardIds: [] as string[] };
+            listIndex = newLists.length;
+            newLists.push(newList);
+            listMap[key] = listIndex;
+          }
+          newCards[cardId] = card;
+          newLists[listIndex].cardIds.push(cardId);
+        }
+        return { ...prev, lists: newLists, cards: newCards };
+      });
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be re-imported
+    if (csvFileInputRef.current) csvFileInputRef.current.value = '';
+  }, [setBoardAndSave]);
+
   // ===================== BOARD KEYBOARD SHORTCUTS =====================
 
   useEffect(() => {
@@ -1200,6 +1367,25 @@ export default function Board() {
           )}
           {hideCompleted ? "Show completed" : "Hide completed"}
           </button>
+          <button className="header-toggle-btn" onClick={() => { closeHeaderDropdowns(); exportCSV(); }} title="Export CSV">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m0 0l-6-6m6 6l6-6M4 19h16" />
+            </svg>
+            Export
+          </button>
+          <button className="header-toggle-btn" onClick={() => { closeHeaderDropdowns(); csvFileInputRef.current?.click(); }} title="Import CSV">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 19V5m0 0l-6 6m6-6l6 6M4 5h16" />
+            </svg>
+            Import
+          </button>
+          <input
+            type="file"
+            accept=".csv"
+            ref={csvFileInputRef}
+            onChange={importCSV}
+            style={{ display: 'none' }}
+          />
           {user && (
             <div className="user-menu-container" style={{ position: "relative" }}>
               <button

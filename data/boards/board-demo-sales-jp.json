@@ -7,9 +7,15 @@
       "title": "新規リード",
       "cardIds": [
         "card-jl1",
-        "card-jl2",
+        "card-jl4",
         "card-jl3",
-        "card-jl4"
+        "card-jl2",
+        "card-1771728828780",
+        "1771741004247-1",
+        "1771741004247-2",
+        "1771741004247-3",
+        "1771741004247-4",
+        "1771741004247-5"
       ]
     },
     {
@@ -18,7 +24,10 @@
       "cardIds": [
         "card-jq1",
         "card-jq2",
-        "card-jq3"
+        "card-jq3",
+        "1771741004247-6",
+        "1771741004247-7",
+        "1771741004247-8"
       ]
     },
     {
@@ -27,7 +36,10 @@
       "cardIds": [
         "card-jp1",
         "card-jp2",
-        "card-jp3"
+        "card-jp3",
+        "1771741004247-9",
+        "1771741004247-10",
+        "1771741004247-11"
       ]
     },
     {
@@ -35,7 +47,9 @@
       "title": "交渉中",
       "cardIds": [
         "card-jn1",
-        "card-jn2"
+        "card-jn2",
+        "1771741004247-12",
+        "1771741004247-13"
       ]
     },
     {
@@ -44,7 +58,8 @@
       "cardIds": [
         "card-jc1",
         "card-jc2",
-        "card-jc3"
+        "1771741004247-14",
+        "1771741004247-15"
       ]
     }
   ],
@@ -56,8 +71,8 @@
       "labels": [
         "blue"
       ],
-      "startDate": "2026-02-10",
-      "dueDate": "2026-02-20",
+      "startDate": "2026-02-12",
+      "dueDate": "2026-02-22",
       "completed": false,
       "completedAt": "",
       "createdAt": "2026-02-10T09:00:00.000Z"
@@ -95,7 +110,7 @@
       "labels": [
         "green"
       ],
-      "startDate": "2026-02-16",
+      "startDate": "2026-02-18",
       "dueDate": "2026-02-23",
       "completed": false,
       "completedAt": "",
@@ -109,8 +124,8 @@
         "blue",
         "red"
       ],
-      "startDate": "2026-01-20",
-      "dueDate": "2026-03-01",
+      "startDate": "2026-01-22",
+      "dueDate": "2026-03-03",
       "completed": false,
       "completedAt": "",
       "createdAt": "2026-01-20T09:00:00.000Z"
@@ -238,18 +253,216 @@
       "completedAt": "2026-01-30T14:00:00.000Z",
       "createdAt": "2025-11-15T09:00:00.000Z"
     },
-    "card-jc3": {
-      "id": "card-jc3",
-      "title": "フレッシュフーズ協同組合 — スターターパック (¥220万)",
-      "description": "スピードクロージング。小規模案件だが戦略的 — ネットワーク内200以上の組合への展開が見込める。",
+    "card-1771728828780": {
+      "id": "card-1771728828780",
+      "title": "d",
+      "description": "",
+      "labels": [],
+      "startDate": "2025-12-13",
+      "dueDate": "2025-12-16",
+      "completed": true,
+      "completedAt": "2026-02-22T02:54:23.649Z",
+      "createdAt": "2026-02-22T02:53:48.780Z"
+    },
+    "1771741004247-1": {
+      "id": "1771741004247-1",
+      "title": "丸紅商事 — エンタープライズライセンス",
+      "description": "Webサイトからのインバウンドリード。営業部長が200席のEnterprise版に興味あり。来週フォローアップ予定。",
+      "labels": [
+        "blue"
+      ],
+      "startDate": "2026-02-12",
+      "dueDate": "2026-02-22",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-22T06:16:44.247Z"
+    },
+    "1771741004247-2": {
+      "id": "1771741004247-2",
+      "title": "ネクストイノベーション — Sales Cloud スターター",
+      "description": "15名の小規模チーム。Sales Cloudスターターパックに興味あり。単価は低いが早期クロージング見込み。",
       "labels": [
         "green"
       ],
-      "startDate": "2026-01-20",
-      "dueDate": "2026-02-10",
+      "startDate": "2026-02-18",
+      "dueDate": "2026-02-23",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-22T06:16:44.247Z"
+    },
+    "1771741004247-3": {
+      "id": "1771741004247-3",
+      "title": "湘南メディカル — CRM導入",
+      "description": "医療業界向け。セキュリティ要件の高いCRMソリューションが必要。初回ヒアリング完了。",
+      "labels": [
+        "orange"
+      ],
+      "startDate": "2026-02-14",
+      "dueDate": "2026-02-28",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-22T06:16:44.247Z"
+    },
+    "1771741004247-4": {
+      "id": "1771741004247-4",
+      "title": "グローバルテック — プラットフォーム移行",
+      "description": "既存顧客からの紹介。HubSpotからSalesforceへの移行を検討中。年間契約額 約¥1,200万の見込み。",
+      "labels": [
+        "purple"
+      ],
+      "startDate": "2026-02-12",
+      "dueDate": "2026-02-25",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-22T06:16:44.247Z"
+    },
+    "1771741004247-5": {
+      "id": "1771741004247-5",
+      "title": "d",
+      "description": "",
+      "labels": [],
+      "startDate": "2025-12-13",
+      "dueDate": "2025-12-16",
       "completed": true,
-      "completedAt": "2026-02-10T11:00:00.000Z",
-      "createdAt": "2026-01-20T09:00:00.000Z"
+      "completedAt": "2026-02-22T06:16:44.247Z",
+      "createdAt": "2026-02-22T06:16:44.247Z"
+    },
+    "1771741004247-6": {
+      "id": "1771741004247-6",
+      "title": "三井ファイナンス — フルスイート導入",
+      "description": "BANT確認済み。予算: ¥2,200万。決裁者: CTO＋CFO。ニーズ: 営業＆サービス統合基盤。クロージング目標: Q1。",
+      "labels": [
+        "blue",
+        "red"
+      ],
+      "startDate": "2026-01-22",
+      "dueDate": "2026-03-03",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-22T06:16:44.247Z"
+    },
+    "1771741004247-7": {
+      "id": "1771741004247-7",
+      "title": "大成建設工業 — Field Service導入",
+      "description": "Field Service Lightningの導入検討。現場作業員50名。デモ好評、技術レビュー待ち。",
+      "labels": [
+        "orange"
+      ],
+      "startDate": "2026-01-28",
+      "dueDate": "2026-02-28",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-22T06:16:44.247Z"
+    },
+    "1771741004247-8": {
+      "id": "1771741004247-8",
+      "title": "エデュラーン — Marketing Cloud",
+      "description": "EdTech企業。マーケティングオートメーション＋ジャーニービルダーが必要。推進者はグロース責任者。",
+      "labels": [
+        "purple"
+      ],
+      "startDate": "2026-02-01",
+      "dueDate": "2026-03-10",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-22T06:16:44.247Z"
+    },
+    "1771741004247-9": {
+      "id": "1771741004247-9",
+      "title": "オリオン物流 — ¥1,800万 提案",
+      "description": "Sales Cloud + Service Cloudバンドルの作業範囲記述書を送付。100ユーザー。先方の法務レビュー待ち。2/20フォロー予定。",
+      "labels": [
+        "blue",
+        "yellow"
+      ],
+      "startDate": "2026-01-15",
+      "dueDate": "2026-02-20",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-22T06:16:44.247Z"
+    },
+    "1771741004247-10": {
+      "id": "1771741004247-10",
+      "title": "ブライトリテール — Commerce Cloud",
+      "description": "ECプラットフォーム移行。¥3,000万案件。導入支援サービス含む。競合: Shopify Plus。",
+      "labels": [
+        "red",
+        "purple"
+      ],
+      "startDate": "2026-01-25",
+      "dueDate": "2026-02-25",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-22T06:16:44.247Z"
+    },
+    "1771741004247-11": {
+      "id": "1771741004247-11",
+      "title": "アトラス製造 — CPQ導入",
+      "description": "複雑な製品カタログ向けのConfigure-Price-Quoteソリューション。フィードバック後の修正提案書を送付済み。年間¥1,100万。",
+      "labels": [
+        "orange",
+        "yellow"
+      ],
+      "startDate": "2026-02-01",
+      "dueDate": "2026-03-05",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-22T06:16:44.247Z"
+    },
+    "1771741004247-12": {
+      "id": "1771741004247-12",
+      "title": "ゼニスメディア — ¥3,700万 エンタープライズ案件",
+      "description": "最終価格交渉中。3年契約で15%ディスカウントを要求。営業部長が主導。法務のレッドライン対応中。",
+      "labels": [
+        "red",
+        "blue"
+      ],
+      "startDate": "2026-01-05",
+      "dueDate": "2026-02-18",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-22T06:16:44.247Z"
+    },
+    "1771741004247-13": {
+      "id": "1771741004247-13",
+      "title": "クリアパス保険 — Service Cloud",
+      "description": "導入スケジュールとサポートSLAを交渉中。案件規模¥1,400万。口頭コミットあり、署名待ち。",
+      "labels": [
+        "yellow",
+        "green"
+      ],
+      "startDate": "2026-01-12",
+      "dueDate": "2026-02-22",
+      "completed": false,
+      "completedAt": "",
+      "createdAt": "2026-02-22T06:16:44.247Z"
+    },
+    "1771741004247-14": {
+      "id": "1771741004247-14",
+      "title": "サミットエナジー — Sales Cloud (¥1,200万)",
+      "description": "3年契約締結。60ユーザー。3/1キックオフ予定。CSM担当: 田中さくら。",
+      "labels": [
+        "green"
+      ],
+      "startDate": "2025-12-21",
+      "dueDate": "2026-02-05",
+      "completed": true,
+      "completedAt": "2026-02-22T06:16:44.247Z",
+      "createdAt": "2026-02-22T06:16:44.247Z"
+    },
+    "1771741004247-15": {
+      "id": "1771741004247-15",
+      "title": "ベロシティモーターズ — Pardot + Sales Cloud (¥1,650万)",
+      "description": "自動車ディーラーグループ。12拠点。Microsoft Dynamicsとの競合POC後に受注。",
+      "labels": [
+        "green",
+        "blue"
+      ],
+      "startDate": "2025-12-12",
+      "dueDate": "2026-01-30",
+      "completed": true,
+      "completedAt": "2026-02-22T06:16:44.247Z",
+      "createdAt": "2026-02-22T06:16:44.247Z"
     }
   },
   "labelNames": {
@@ -260,5 +473,5 @@
     "purple": "新規ビジネス",
     "blue": "エンタープライズ"
   },
-  "version": 1
+  "version": 55
 }
