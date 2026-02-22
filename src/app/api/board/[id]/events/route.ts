@@ -1,9 +1,5 @@
 import { subscribe } from "@/lib/event-bus";
 import { getSession } from "@/lib/session";
-import { isBoardOwner } from "@/lib/auth";
-import { BOARDS_DIR } from "@/lib/db";
-import fs from "fs";
-import path from "path";
 
 export const dynamic = "force-dynamic";
 
@@ -14,13 +10,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   const { id: boardId } = await params;
-
-  // Allow if board doesn't exist on disk yet (new unsaved board)
-  const boardExists = fs.existsSync(path.join(BOARDS_DIR, `${boardId}.json`));
-  if (boardExists && !(await isBoardOwner(boardId, session.userId))) {
-    return new Response("Access denied", { status: 403 });
-  }
-
   const url = new URL(req.url);
   const clientId = url.searchParams.get("clientId") ?? "anonymous";
 

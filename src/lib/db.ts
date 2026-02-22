@@ -45,13 +45,6 @@ const SCHEMA_STATEMENTS = [
     used INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   )`,
-  `CREATE TABLE IF NOT EXISTS board_ownership (
-    board_id TEXT NOT NULL,
-    user_id TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'owner',
-    PRIMARY KEY (board_id, user_id),
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  )`,
 ];
 
 let initialized = false;

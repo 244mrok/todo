@@ -1,9 +1,8 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
-import { getDb, initSchema, BOARDS_DIR } from "./db";
+import { getDb, initSchema } from "./db";
 import type { AuthUser, JwtPayload } from "@/types/auth";
-import fs from "fs";
 
 const SALT_ROUNDS = 12;
 
@@ -62,13 +61,6 @@ export async function createUser(
           VALUES (?, ?, ?, ?, ?, ?)`,
     args: [id, email.toLowerCase(), passwordHash, name, now, now],
   });
-
-  // If this is the first user, inherit all existing boards
-  const countResult = await db.execute("SELECT COUNT(*) as count FROM users");
-  const userCount = Number(countResult.rows[0].count);
-  if (userCount === 1) {
-    await inheritExistingBoards(id);
-  }
 
   return {
     id,
@@ -178,51 +170,3 @@ export async function consumeEmailToken(
   return row.user_id as string;
 }
 
-// ─── Board Ownership ───
-
-export async function addBoardOwnership(boardId: string, userId: string) {
-  await initSchema();
-  const db = getDb();
-  await db.execute({
-    sql: "INSERT OR IGNORE INTO board_ownership (board_id, user_id, role) VALUES (?, ?, 'owner')",
-    args: [boardId, userId],
-  });
-}
-
-export async function getUserBoards(userId: string): Promise<string[]> {
-  await initSchema();
-  const db = getDb();
-  const result = await db.execute({
-    sql: "SELECT board_id FROM board_ownership WHERE user_id = ?",
-    args: [userId],
-  });
-  return result.rows.map((r) => r.board_id as string);
-}
-
-export async function isBoardOwner(
-  boardId: string,
-  userId: string,
-): Promise<boolean> {
-  await initSchema();
-  const db = getDb();
-  const result = await db.execute({
-    sql: "SELECT 1 FROM board_ownership WHERE board_id = ? AND user_id = ?",
-    args: [boardId, userId],
-  });
-  return result.rows.length > 0;
-}
-
-async function inheritExistingBoards(userId: string) {
-  if (!fs.existsSync(BOARDS_DIR)) return;
-
-  const files = fs.readdirSync(BOARDS_DIR).filter((f) => f.endsWith(".json"));
-  const db = getDb();
-
-  for (const file of files) {
-    const boardId = file.replace(".json", "");
-    await db.execute({
-      sql: "INSERT OR IGNORE INTO board_ownership (board_id, user_id, role) VALUES (?, ?, 'owner')",
-      args: [boardId, userId],
-    });
-  }
-}

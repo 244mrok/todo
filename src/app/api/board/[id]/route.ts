@@ -3,7 +3,6 @@ import fs from "fs";
 import path from "path";
 import { broadcast } from "@/lib/event-bus";
 import { getSession } from "@/lib/session";
-import { isBoardOwner, addBoardOwnership } from "@/lib/auth";
 import { BOARDS_DIR } from "@/lib/db";
 
 function ensureDir() {
@@ -21,12 +20,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
   ensureDir();
   const { id } = await params;
-
-  // Check ownership (allow if board file doesn't exist — new board)
   const filePath = path.join(BOARDS_DIR, `${id}.json`);
-  if (fs.existsSync(filePath) && !(await isBoardOwner(id, session.userId))) {
-    return NextResponse.json({ error: "Access denied." }, { status: 403 });
-  }
 
   if (!fs.existsSync(filePath)) {
     return NextResponse.json(null, { status: 404 });
@@ -53,13 +47,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
   const clientId = req.headers.get("X-Client-Id") || "";
   const filePath = path.join(BOARDS_DIR, `${id}.json`);
 
-  // If board is new, assign ownership to current user
   const isNew = !fs.existsSync(filePath);
-  if (isNew) {
-    await addBoardOwnership(id, session.userId);
-  } else if (!(await isBoardOwner(id, session.userId))) {
-    return NextResponse.json({ error: "Access denied." }, { status: 403 });
-  }
 
   // Read current version from disk
   let diskVersion = 0;
@@ -103,10 +91,6 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
 
   ensureDir();
   const { id } = await params;
-
-  if (!(await isBoardOwner(id, session.userId))) {
-    return NextResponse.json({ error: "Access denied." }, { status: 403 });
-  }
 
   const filePath = path.join(BOARDS_DIR, `${id}.json`);
   if (fs.existsSync(filePath)) {
