@@ -186,17 +186,21 @@ export default function Board() {
     setShowMovePicker(false);
   }, []);
 
-  // Close header dropdowns when clicking outside
+  // Close header dropdowns when clicking/tapping outside
   useEffect(() => {
     if (!showBoardPicker && !showUserMenu) return;
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest(".board-picker") && !target.closest(".user-menu-dropdown") && !target.closest(".user-avatar-btn") && !target.closest(".header-toggle-btn")) {
         closeHeaderDropdowns();
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
   }, [showBoardPicker, showUserMenu, closeHeaderDropdowns]);
 
   // Card drag state
@@ -896,37 +900,40 @@ export default function Board() {
               Load
             </button>
             {showBoardPicker && (
-              <div className="board-picker">
-                <p className="board-picker-title">Saved Projects</p>
-                {savedBoards.length === 0 && (
-                  <p className="board-picker-empty">No saved projects yet</p>
-                )}
-                {savedBoards.map(b => (
-                  <div key={b.id} className="board-picker-row">
-                    <button
-                      className={`board-picker-item ${b.id === board.id ? "board-picker-item-active" : ""}`}
-                      onClick={() => loadBoard(b.id)}
-                    >
-                      {b.name || "Untitled"}
-                    </button>
-                    <button
-                      className="board-picker-delete"
-                      onClick={e => { e.stopPropagation(); deleteBoard(b.id); }}
-                      title="Delete project"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-                <button className="board-picker-new" onClick={createNewBoard}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
-                  New project
-                </button>
-              </div>
+              <>
+                <div className="dropdown-backdrop" onClick={() => setShowBoardPicker(false)} onTouchEnd={e => { e.preventDefault(); setShowBoardPicker(false); }} />
+                <div className="board-picker">
+                  <p className="board-picker-title">Saved Projects</p>
+                  {savedBoards.length === 0 && (
+                    <p className="board-picker-empty">No saved projects yet</p>
+                  )}
+                  {savedBoards.map(b => (
+                    <div key={b.id} className="board-picker-row">
+                      <button
+                        className={`board-picker-item ${b.id === board.id ? "board-picker-item-active" : ""}`}
+                        onClick={() => loadBoard(b.id)}
+                      >
+                        {b.name || "Untitled"}
+                      </button>
+                      <button
+                        className="board-picker-delete"
+                        onClick={e => { e.stopPropagation(); deleteBoard(b.id); }}
+                        title="Delete project"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                  <button className="board-picker-new" onClick={createNewBoard}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                    New project
+                  </button>
+                </div>
+              </>
             )}
           </div>
           <div className="view-toggle">
@@ -978,6 +985,8 @@ export default function Board() {
                 {user.name.charAt(0).toUpperCase()}
               </button>
               {showUserMenu && (
+                <>
+                <div className="dropdown-backdrop" onClick={() => setShowUserMenu(false)} onTouchEnd={e => { e.preventDefault(); setShowUserMenu(false); }} />
                 <div className="user-menu-dropdown">
                   <div className="user-menu-info">
                     <div className="user-menu-name">{user.name}</div>
@@ -991,6 +1000,7 @@ export default function Board() {
                     Sign out
                   </button>
                 </div>
+                </>
               )}
             </div>
           )}

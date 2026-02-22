@@ -101,6 +101,15 @@ body {
   background: rgba(255, 255, 255, 0.35);
 }
 
+/* ===== DROPDOWN BACKDROP (mobile tap-to-close) ===== */
+.dropdown-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* ===== BOARD PICKER ===== */
 .board-picker {
   position: absolute;
