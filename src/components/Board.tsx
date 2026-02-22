@@ -212,6 +212,8 @@ export default function Board() {
   const [showMovePicker, setShowMovePicker] = useState(false);
   const [editDesc, setEditDesc] = useState(false);
   const [hideCompleted, setHideCompleted] = useState(false);
+  const [selectedLabels, setSelectedLabels] = useState<Set<string>>(new Set());
+  const [showLabelFilter, setShowLabelFilter] = useState(false);
   const [viewMode, setViewMode] = useState<"board" | "gantt">("board");
   const [editingProjectName, setEditingProjectName] = useState(false);
   const [projectNameDraft, setProjectNameDraft] = useState("");
@@ -222,6 +224,7 @@ export default function Board() {
   const closeHeaderDropdowns = useCallback(() => {
     setShowBoardPicker(false);
     setShowUserMenu(false);
+    setShowLabelFilter(false);
   }, []);
 
   // Close all card modal sub-pickers
@@ -234,10 +237,10 @@ export default function Board() {
 
   // Close header dropdowns when clicking/tapping outside
   useEffect(() => {
-    if (!showBoardPicker && !showUserMenu) return;
+    if (!showBoardPicker && !showUserMenu && !showLabelFilter) return;
     const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest(".board-picker") && !target.closest(".user-menu-dropdown") && !target.closest(".user-avatar-btn") && !target.closest(".header-toggle-btn")) {
+      if (!target.closest(".board-picker") && !target.closest(".user-menu-dropdown") && !target.closest(".user-avatar-btn") && !target.closest(".header-toggle-btn") && !target.closest(".label-filter-dropdown")) {
         closeHeaderDropdowns();
       }
     };
@@ -247,7 +250,7 @@ export default function Board() {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("touchstart", handleClickOutside);
     };
-  }, [showBoardPicker, showUserMenu, closeHeaderDropdowns]);
+  }, [showBoardPicker, showUserMenu, showLabelFilter, closeHeaderDropdowns]);
 
   // Card drag state
   const dragCard = useRef<{ cardId: string; sourceListId: string } | null>(null);
@@ -800,6 +803,7 @@ export default function Board() {
         const card = prev.cards[id];
         if (!card) return false;
         if (hideCompleted && card.completed) return false;
+        if (selectedLabels.size > 0 && !card.labels.some(l => selectedLabels.has(l))) return false;
         return !!(card.startDate || card.dueDate);
       });
 
@@ -850,11 +854,20 @@ export default function Board() {
 
   const getLabelName = (color: string) => getLabelNameUtil(board, color);
 
+  const toggleLabelFilter = useCallback((color: string) => {
+    setSelectedLabels(prev => {
+      const next = new Set(prev);
+      if (next.has(color)) next.delete(color);
+      else next.add(color);
+      return next;
+    });
+  }, []);
+
   // ===================== HELPERS =====================
 
   const getListForCard = (cardId: string) => getListForCardUtil(board, cardId);
 
-  const getVisibleCardIds = (cardIds: string[]) => getVisibleCardIdsUtil(cardIds, board.cards, hideCompleted);
+  const getVisibleCardIds = (cardIds: string[]) => getVisibleCardIdsUtil(cardIds, board.cards, hideCompleted, selectedLabels);
 
   // ===================== CSV EXPORT / IMPORT =====================
 
@@ -1367,6 +1380,50 @@ export default function Board() {
           )}
           {hideCompleted ? "Show completed" : "Hide completed"}
           </button>
+          <div style={{ position: "relative" }}>
+            <button
+              className={`header-toggle-btn ${selectedLabels.size > 0 ? "header-toggle-active" : ""}`}
+              onClick={() => { const opening = !showLabelFilter; closeHeaderDropdowns(); setShowLabelFilter(opening); }}
+              title="Filter by label"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+              </svg>
+              Labels{selectedLabels.size > 0 ? ` (${selectedLabels.size})` : ""}
+            </button>
+            {showLabelFilter && (
+              <>
+              <div className="dropdown-backdrop" onClick={() => setShowLabelFilter(false)} onTouchEnd={e => { e.preventDefault(); setShowLabelFilter(false); }} />
+              <div className="label-filter-dropdown">
+                <div className="label-filter-title">Filter by Label</div>
+                {Object.entries(LABEL_COLORS).map(([color, hex]) => (
+                  <button
+                    key={color}
+                    className="label-filter-row"
+                    onClick={() => toggleLabelFilter(color)}
+                  >
+                    <span className="label-filter-swatch" style={{ background: hex }} />
+                    <span className="label-filter-name">{board.labelNames?.[color] || color}</span>
+                    {selectedLabels.has(color) && (
+                      <svg className="label-filter-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+                {selectedLabels.size > 0 && (
+                  <>
+                  <div style={{ borderTop: "1px solid #ebecf0", marginTop: 6, paddingTop: 6 }}>
+                    <button className="label-filter-clear" onClick={() => setSelectedLabels(new Set())}>
+                      Clear filter
+                    </button>
+                  </div>
+                  </>
+                )}
+              </div>
+              </>
+            )}
+          </div>
           <button className="header-toggle-btn" onClick={() => { closeHeaderDropdowns(); exportCSV(); }} title="Export CSV">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m0 0l-6-6m6 6l6-6M4 19h16" />
@@ -1448,6 +1505,7 @@ export default function Board() {
             const card = board.cards[cardId];
             if (!card) continue;
             if (hideCompleted && card.completed) continue;
+            if (selectedLabels.size > 0 && !card.labels.some(l => selectedLabels.has(l))) continue;
             // Need at least a start date or due date to show
             const start = card.startDate || card.dueDate;
             const end = card.dueDate || card.startDate;

@@ -21,10 +21,15 @@ export function getSortedCardIds(cardIds: string[], cards: Record<string, Card>)
   return [...incomplete, ...completed];
 }
 
-export function getVisibleCardIds(cardIds: string[], cards: Record<string, Card>, hideCompleted: boolean) {
+export function getVisibleCardIds(cardIds: string[], cards: Record<string, Card>, hideCompleted: boolean, selectedLabels?: Set<string>) {
   const sorted = getSortedCardIds(cardIds, cards);
-  if (hideCompleted) return sorted.filter(id => !cards[id]?.completed);
-  return sorted;
+  return sorted.filter(id => {
+    const card = cards[id];
+    if (!card) return false;
+    if (hideCompleted && card.completed) return false;
+    if (selectedLabels && selectedLabels.size > 0 && !card.labels.some(l => selectedLabels.has(l))) return false;
+    return true;
+  });
 }
 
 export function getListForCard(board: BoardData, cardId: string) {

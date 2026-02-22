@@ -217,6 +217,87 @@ body {
   color: #172b4d;
 }
 
+/* ===== LABEL FILTER DROPDOWN ===== */
+.label-filter-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 6px;
+  width: 220px;
+  background: white;
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25);
+  z-index: 100;
+}
+
+.label-filter-title {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5e6c84;
+  padding: 4px 0 8px;
+  border-bottom: 1px solid #ebecf0;
+  margin-bottom: 6px;
+}
+
+.label-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #172b4d;
+  cursor: pointer;
+  font-family: inherit;
+  text-transform: capitalize;
+}
+.label-filter-row:hover {
+  background: rgba(9, 30, 66, 0.08);
+}
+
+.label-filter-swatch {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.label-filter-name {
+  flex: 1;
+  text-align: left;
+}
+
+.label-filter-check {
+  flex-shrink: 0;
+  color: #0079bf;
+}
+
+.label-filter-clear {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #5e6c84;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+}
+.label-filter-clear:hover {
+  background: rgba(9, 30, 66, 0.08);
+  color: #172b4d;
+}
+
 /* ===== BOARD CANVAS ===== */
 .board-canvas {
   flex: 1;
@@ -1622,6 +1703,18 @@ body {
   }
 
   /* Pickers: fixed center overlays */
+  .label-filter-dropdown {
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    margin-top: 0;
+    width: 280px;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 1100;
+  }
+
   .date-picker,
   .label-picker,
   .move-picker {
@@ -1802,6 +1895,21 @@ body {
   }
 
   /* Pickers on phone: also bottom sheet style */
+  .label-filter-dropdown {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    transform: none;
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding: 12px 16px 24px;
+    max-height: 70vh;
+    overflow-y: auto;
+    animation: slideUp 0.2s ease-out;
+  }
+
   .date-picker,
   .label-picker,
   .move-picker {
