@@ -33,6 +33,9 @@ yarn-error.log*
 # auth database
 data/auth.db*
 
+# board data
+data/boards/
+
 # env files (can opt-in for committing if needed)
 .env*
 
