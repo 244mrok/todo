@@ -9,6 +9,8 @@ import { BOARDS_DIR } from "./db";
 const productLaunch = {
   id: "board-product-launch",
   name: "Product Launch — v2.0",
+  ownerId: null as string | null,
+  editors: [] as string[],
   lists: [
     {
       id: "list-ideas",
@@ -265,6 +267,8 @@ const productLaunch = {
 const salesPipeline = {
   id: "board-demo-sales",
   name: "Salesforce Sales Pipeline",
+  ownerId: null as string | null,
+  editors: [] as string[],
   lists: [
     {
       id: "list-leads",
@@ -492,6 +496,8 @@ const salesPipeline = {
 const salesPipelineJP = {
   id: "board-demo-sales-jp",
   name: "Salesforce 営業パイプライン",
+  ownerId: null as string | null,
+  editors: [] as string[],
   lists: [
     {
       id: "list-leads-jp",

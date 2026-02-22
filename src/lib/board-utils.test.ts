@@ -103,6 +103,8 @@ describe("getListForCard", () => {
     cards: {},
     labelNames: {},
     version: 1,
+    ownerId: null,
+    editors: [],
   };
 
   it("finds the correct list for a card", () => {
@@ -123,6 +125,8 @@ describe("getLabelName", () => {
     cards: {},
     labelNames: { green: "Priority", red: "Bug" },
     version: 1,
+    ownerId: null,
+    editors: [],
   };
 
   it("returns label name when it exists", () => {

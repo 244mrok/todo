@@ -1,5 +1,6 @@
 import { subscribe } from "@/lib/event-bus";
 import { getSession } from "@/lib/session";
+import { checkBoardAccess } from "@/lib/board-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +11,12 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   }
 
   const { id: boardId } = await params;
+
+  // Access check
+  const { authorized } = checkBoardAccess(boardId, session.userId);
+  if (!authorized) {
+    return new Response("Access denied", { status: 403 });
+  }
   const url = new URL(req.url);
   const clientId = url.searchParams.get("clientId") ?? "anonymous";
 

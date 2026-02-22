@@ -2155,6 +2155,98 @@ body {
   min-width: 40px;
 }
 
+/* ===== SHARING MODAL ===== */
+.sharing-add-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.sharing-email-input {
+  flex: 1;
+  border: 2px solid #dfe1e6;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #172b4d;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.sharing-email-input:focus {
+  border-color: #0079bf;
+}
+
+.sharing-error {
+  color: #eb5a46;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.sharing-empty {
+  font-size: 13px;
+  color: #8c8c8c;
+  padding: 12px 0;
+}
+
+.sharing-editor-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f1f4;
+}
+.sharing-editor-row:last-child {
+  border-bottom: none;
+}
+
+.sharing-editor-avatar {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  border-radius: 50%;
+  background: #0079bf;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sharing-editor-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sharing-editor-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #172b4d;
+}
+
+.sharing-editor-email {
+  font-size: 12px;
+  color: #5e6c84;
+}
+
+.sharing-remove-btn {
+  border: none;
+  background: none;
+  color: #b0b0b0;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.sharing-remove-btn:hover {
+  background: #eb5a46;
+  color: white;
+}
+
 /* ===== USER MENU ===== */
 .user-avatar-btn {
   width: 32px;

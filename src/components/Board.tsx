@@ -61,7 +61,16 @@ export default function Board() {
   const dirty = useRef(false); // only save when user actually changes something
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showBoardPicker, setShowBoardPicker] = useState(false);
-  const [savedBoards, setSavedBoards] = useState<{ id: string; name: string }[]>([]);
+  const [savedBoards, setSavedBoards] = useState<{ id: string; name: string; ownerId: string | null; isOwner: boolean }[]>([]);
+
+  // Sharing state
+  const [showSharingModal, setShowSharingModal] = useState(false);
+  const [sharingEditors, setSharingEditors] = useState<{id: string; email: string; name: string}[]>([]);
+  const [sharingEmail, setSharingEmail] = useState("");
+  const [sharingError, setSharingError] = useState("");
+  const [sharingLoading, setSharingLoading] = useState(false);
+
+  const isOwner = !!user && board.ownerId === user.id;
 
   // Wrap setBoard to mark dirty
   const setBoardAndSave = useCallback((updater: BoardData | ((prev: BoardData) => BoardData)) => {
@@ -198,6 +207,59 @@ export default function Board() {
       .catch(() => {});
   }, [board.id, loadBoard, createNewBoard]);
 
+  // ===================== SHARING =====================
+
+  const loadSharingInfo = useCallback(() => {
+    setSharingLoading(true);
+    setSharingError("");
+    fetch(`/api/board/${board.id}/sharing`)
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to load sharing info");
+        return res.json();
+      })
+      .then(data => {
+        setSharingEditors(data.editors || []);
+      })
+      .catch(() => setSharingError("Failed to load sharing info."))
+      .finally(() => setSharingLoading(false));
+  }, [board.id]);
+
+  const addEditor = useCallback(() => {
+    if (!sharingEmail.trim()) return;
+    setSharingLoading(true);
+    setSharingError("");
+    fetch(`/api/board/${board.id}/sharing`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "add", email: sharingEmail.trim() }),
+    })
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to add editor");
+        setSharingEditors(data.editors || []);
+        setSharingEmail("");
+      })
+      .catch(err => setSharingError(err.message))
+      .finally(() => setSharingLoading(false));
+  }, [board.id, sharingEmail]);
+
+  const removeEditor = useCallback((email: string) => {
+    setSharingLoading(true);
+    setSharingError("");
+    fetch(`/api/board/${board.id}/sharing`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "remove", email }),
+    })
+      .then(async res => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to remove editor");
+        setSharingEditors(data.editors || []);
+      })
+      .catch(err => setSharingError(err.message))
+      .finally(() => setSharingLoading(false));
+  }, [board.id]);
+
   // UI state
   const [addingListTitle, setAddingListTitle] = useState("");
   const [showAddList, setShowAddList] = useState(false);
@@ -225,6 +287,7 @@ export default function Board() {
     setShowBoardPicker(false);
     setShowUserMenu(false);
     setShowLabelFilter(false);
+    setShowSharingModal(false);
   }, []);
 
   // Close all card modal sub-pickers
@@ -1320,15 +1383,17 @@ export default function Board() {
                       >
                         {b.name || "Untitled"}
                       </button>
-                      <button
-                        className="board-picker-delete"
-                        onClick={e => { e.stopPropagation(); deleteBoard(b.id); }}
-                        title="Delete project"
-                      >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
+                      {(b.isOwner || !b.ownerId) && (
+                        <button
+                          className="board-picker-delete"
+                          onClick={e => { e.stopPropagation(); deleteBoard(b.id); }}
+                          title="Delete project"
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   ))}
                   <button className="board-picker-new" onClick={createNewBoard}>
@@ -1443,6 +1508,18 @@ export default function Board() {
             onChange={importCSV}
             style={{ display: 'none' }}
           />
+          {isOwner && (
+            <button
+              className="header-toggle-btn"
+              onClick={() => { closeHeaderDropdowns(); setShowSharingModal(true); loadSharingInfo(); }}
+              title="Share board"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              Share
+            </button>
+          )}
           {user && (
             <div className="user-menu-container" style={{ position: "relative" }}>
               <button
@@ -1973,6 +2050,68 @@ export default function Board() {
           )}
         </div>
       </div>
+      )}
+
+      {/* Sharing modal */}
+      {showSharingModal && (
+        <div className="modal-overlay" onClick={() => setShowSharingModal(false)}>
+          <div className="modal-content" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowSharingModal(false)}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="modal-header" style={{ marginBottom: 16 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#42526e" strokeWidth="2" style={{ marginTop: 4, flexShrink: 0 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <h2 style={{ fontSize: 18, fontWeight: 600, color: "#172b4d" }}>Share Board</h2>
+            </div>
+
+            <div className="sharing-add-form">
+              <input
+                type="email"
+                className="sharing-email-input"
+                placeholder="Enter email address..."
+                value={sharingEmail}
+                onChange={e => { setSharingEmail(e.target.value); setSharingError(""); }}
+                onKeyDown={e => { if (e.key === "Enter") addEditor(); }}
+                disabled={sharingLoading}
+              />
+              <button className="btn-primary" onClick={addEditor} disabled={sharingLoading || !sharingEmail.trim()}>
+                Add
+              </button>
+            </div>
+
+            {sharingError && <p className="sharing-error">{sharingError}</p>}
+
+            <div style={{ marginTop: 16 }}>
+              <h4 className="modal-label">Editors</h4>
+              {sharingEditors.length === 0 && !sharingLoading && (
+                <p className="sharing-empty">No editors yet. Add people by email to give them edit access.</p>
+              )}
+              {sharingEditors.map(editor => (
+                <div key={editor.id} className="sharing-editor-row">
+                  <div className="sharing-editor-avatar">{editor.name.charAt(0).toUpperCase()}</div>
+                  <div className="sharing-editor-info">
+                    <div className="sharing-editor-name">{editor.name}</div>
+                    <div className="sharing-editor-email">{editor.email}</div>
+                  </div>
+                  <button
+                    className="sharing-remove-btn"
+                    onClick={() => removeEditor(editor.email)}
+                    disabled={sharingLoading}
+                    title="Remove editor"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Keyboard shortcuts help overlay */}

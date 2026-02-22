@@ -5,7 +5,7 @@ export function newBoardId() {
 }
 
 export function createEmptyBoard(): BoardData {
-  return { id: newBoardId(), name: "New Project", lists: [], cards: {}, labelNames: {}, version: 1 };
+  return { id: newBoardId(), name: "New Project", lists: [], cards: {}, labelNames: {}, version: 1, ownerId: null, editors: [] };
 }
 
 /** Sort: incomplete cards in original order first, then completed cards by completedAt descending */

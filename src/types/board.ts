@@ -23,6 +23,8 @@ export interface BoardData {
   cards: Record<string, Card>;
   labelNames: Record<string, string>;
   version: number;
+  ownerId: string | null;  // null = public/demo board
+  editors: string[];       // user IDs with edit access
 }
 
 export const LABEL_COLORS: Record<string, string> = {
