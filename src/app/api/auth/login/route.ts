@@ -46,7 +46,6 @@ export async function POST(req: Request) {
         id: user.id,
         email: user.email,
         name: user.name,
-        emailVerified: user.email_verified === 1,
         createdAt: user.created_at,
       },
     });

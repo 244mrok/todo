@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { getUserByEmail, createEmailToken } from "@/lib/auth";
-import { sendPasswordResetEmail } from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
@@ -28,7 +27,8 @@ export async function POST(req: Request) {
     if (!user) return successResponse;
 
     const token = await createEmailToken(user.id, "reset");
-    await sendPasswordResetEmail(user.email, token);
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    console.log(`[Password Reset] Link: ${baseUrl}/auth/reset-password?token=${token}`);
 
     return successResponse;
   } catch (error) {

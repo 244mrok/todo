@@ -58,8 +58,8 @@ export async function createUser(
   const now = new Date().toISOString();
 
   await db.execute({
-    sql: `INSERT INTO users (id, email, password_hash, name, email_verified, created_at, updated_at)
-          VALUES (?, ?, ?, ?, 0, ?, ?)`,
+    sql: `INSERT INTO users (id, email, password_hash, name, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?)`,
     args: [id, email.toLowerCase(), passwordHash, name, now, now],
   });
 
@@ -74,7 +74,6 @@ export async function createUser(
     id,
     email: email.toLowerCase(),
     name,
-    emailVerified: false,
     createdAt: now,
   };
 }
@@ -113,18 +112,8 @@ export async function getUserById(id: string): Promise<AuthUser | null> {
     id: row.id as string,
     email: row.email as string,
     name: row.name as string,
-    emailVerified: (row.email_verified as number) === 1,
     createdAt: row.created_at as string,
   };
-}
-
-export async function markEmailVerified(userId: string) {
-  await initSchema();
-  const db = getDb();
-  await db.execute({
-    sql: "UPDATE users SET email_verified = 1, updated_at = datetime('now') WHERE id = ?",
-    args: [userId],
-  });
 }
 
 export async function updatePassword(userId: string, passwordHash: string) {
@@ -140,13 +129,13 @@ export async function updatePassword(userId: string, passwordHash: string) {
 
 export async function createEmailToken(
   userId: string,
-  type: "verify" | "reset",
+  type: "reset",
 ): Promise<string> {
   await initSchema();
   const db = getDb();
   const id = uuidv4();
   const token = uuidv4();
-  const hours = type === "verify" ? 24 : 1;
+  const hours = 1;
   const expiresAt = new Date(
     Date.now() + hours * 60 * 60 * 1000,
   ).toISOString();
@@ -168,7 +157,7 @@ export async function createEmailToken(
 
 export async function consumeEmailToken(
   token: string,
-  type: "verify" | "reset",
+  type: "reset",
 ): Promise<string | null> {
   await initSchema();
   const db = getDb();

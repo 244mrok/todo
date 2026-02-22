@@ -4,8 +4,6 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
-import { useToast } from "@/components/Toast";
-import PasswordStrength from "@/components/PasswordStrength";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -15,7 +13,6 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const { register } = useAuth();
-  const { toast } = useToast();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,7 +28,6 @@ export default function RegisterPage() {
     if (result.error) {
       setError(result.error);
     } else {
-      toast("Account created! Check your email to verify.", "success");
       router.push("/");
     }
   };
@@ -92,7 +88,6 @@ export default function RegisterPage() {
               )}
             </button>
           </div>
-          <PasswordStrength password={password} />
         </div>
         <button type="submit" className="auth-submit" disabled={submitting}>
           {submitting ? <span className="auth-spinner" /> : "Create account"}

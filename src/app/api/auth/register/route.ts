@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  createUser,
-  getUserByEmail,
-  hashPassword,
-  createEmailToken,
-} from "@/lib/auth";
+import { createUser, getUserByEmail, hashPassword } from "@/lib/auth";
 import { createSessionCookie } from "@/lib/session";
-import { sendVerificationEmail } from "@/lib/email";
 import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: Request) {
@@ -46,9 +40,6 @@ export async function POST(req: Request) {
 
     const passwordHash = await hashPassword(password);
     const user = await createUser(email, passwordHash, name);
-
-    const token = await createEmailToken(user.id, "verify");
-    await sendVerificationEmail(email, token);
 
     await createSessionCookie(user.id, user.email);
 

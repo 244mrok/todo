@@ -6,11 +6,9 @@ import { LABEL_COLORS } from "@/types/board";
 import { createEmptyBoard, getVisibleCardIds as getVisibleCardIdsUtil, getListForCard as getListForCardUtil, getLabelName as getLabelNameUtil } from "@/lib/board-utils";
 import { useBoardSync } from "@/hooks/useBoardSync";
 import { useAuth } from "@/components/AuthProvider";
-import { useToast } from "@/components/Toast";
 
 export default function Board() {
   const { user, logout } = useAuth();
-  const { toast } = useToast();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [board, setBoard] = useState<BoardData>(createEmptyBoard);
   const [loaded, setLoaded] = useState(false);
@@ -173,6 +171,33 @@ export default function Board() {
   const [projectNameDraft, setProjectNameDraft] = useState("");
   const [focusPos, setFocusPos] = useState<{ listIdx: number; cardIdx: number } | null>(null);
   const [showShortcutHelp, setShowShortcutHelp] = useState(false);
+
+  // Close all header-level dropdowns
+  const closeHeaderDropdowns = useCallback(() => {
+    setShowBoardPicker(false);
+    setShowUserMenu(false);
+  }, []);
+
+  // Close all card modal sub-pickers
+  const closeModalPickers = useCallback(() => {
+    setShowLabelPicker(false);
+    setShowDatePicker(false);
+    setShowStartDatePicker(false);
+    setShowMovePicker(false);
+  }, []);
+
+  // Close header dropdowns when clicking outside
+  useEffect(() => {
+    if (!showBoardPicker && !showUserMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(".board-picker") && !target.closest(".user-menu-dropdown") && !target.closest(".user-avatar-btn") && !target.closest(".header-toggle-btn")) {
+        closeHeaderDropdowns();
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showBoardPicker, showUserMenu, closeHeaderDropdowns]);
 
   // Card drag state
   const dragCard = useRef<{ cardId: string; sourceListId: string } | null>(null);
@@ -854,7 +879,7 @@ export default function Board() {
           )}
         </div>
         <div className="board-header-right">
-          <button className="header-toggle-btn" onClick={createNewBoard}>
+          <button className="header-toggle-btn" onClick={() => { closeHeaderDropdowns(); createNewBoard(); }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
@@ -863,7 +888,7 @@ export default function Board() {
           <div style={{ position: "relative" }}>
             <button
               className="header-toggle-btn"
-              onClick={() => { setShowBoardPicker(!showBoardPicker); if (!showBoardPicker) loadBoardList(); }}
+              onClick={() => { const opening = !showBoardPicker; closeHeaderDropdowns(); setShowBoardPicker(opening); if (opening) loadBoardList(); }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
@@ -907,7 +932,7 @@ export default function Board() {
           <div className="view-toggle">
             <button
               className={`view-toggle-btn ${viewMode === "board" ? "view-toggle-btn-active" : ""}`}
-              onClick={() => setViewModeAndClearFocus("board")}
+              onClick={() => { closeHeaderDropdowns(); setViewModeAndClearFocus("board"); }}
               title="Board view"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
@@ -918,7 +943,7 @@ export default function Board() {
             </button>
             <button
               className={`view-toggle-btn ${viewMode === "gantt" ? "view-toggle-btn-active" : ""}`}
-              onClick={() => setViewModeAndClearFocus("gantt")}
+              onClick={() => { closeHeaderDropdowns(); setViewModeAndClearFocus("gantt"); }}
               title="Timeline view"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -929,7 +954,7 @@ export default function Board() {
           </div>
           <button
             className={`header-toggle-btn ${hideCompleted ? "header-toggle-active" : ""}`}
-            onClick={() => setHideCompleted(prev => !prev)}
+            onClick={() => { closeHeaderDropdowns(); setHideCompleted(prev => !prev); }}
           >
           {hideCompleted ? (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -947,7 +972,7 @@ export default function Board() {
             <div className="user-menu-container" style={{ position: "relative" }}>
               <button
                 className="user-avatar-btn"
-                onClick={() => setShowUserMenu(!showUserMenu)}
+                onClick={() => { const opening = !showUserMenu; closeHeaderDropdowns(); setShowUserMenu(opening); }}
                 title={user.name}
               >
                 {user.name.charAt(0).toUpperCase()}
@@ -971,31 +996,6 @@ export default function Board() {
           )}
         </div>
       </header>
-
-      {/* Email verification banner */}
-      {user && !user.emailVerified && (
-        <div className="email-banner">
-          <span>Please verify your email address. Check your inbox for a verification link.</span>
-          <button
-            className="email-banner-resend"
-            onClick={async () => {
-              try {
-                const res = await fetch("/api/auth/resend-verification", { method: "POST" });
-                if (res.ok) {
-                  toast("Verification email sent!", "success");
-                } else {
-                  const data = await res.json();
-                  toast(data.error || "Failed to resend.", "error");
-                }
-              } catch {
-                toast("Failed to resend verification email.", "error");
-              }
-            }}
-          >
-            Resend
-          </button>
-        </div>
-      )}
 
       {/* Board / Gantt */}
       {viewMode === "gantt" ? (() => {
@@ -1589,7 +1589,7 @@ export default function Board() {
                   <div className="modal-sidebar-actions">
                     {/* Labels */}
                     <div style={{ position: "relative" }}>
-                      <button className="sidebar-btn" onClick={() => setShowLabelPicker(!showLabelPicker)}>
+                      <button className="sidebar-btn" onClick={() => { const opening = !showLabelPicker; closeModalPickers(); setShowLabelPicker(opening); }}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
                         </svg>
@@ -1646,7 +1646,7 @@ export default function Board() {
 
                     {/* Start Date */}
                     <div style={{ position: "relative" }}>
-                      <button className="sidebar-btn" onClick={() => setShowStartDatePicker(!showStartDatePicker)}>
+                      <button className="sidebar-btn" onClick={() => { const opening = !showStartDatePicker; closeModalPickers(); setShowStartDatePicker(opening); }}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
@@ -1674,7 +1674,7 @@ export default function Board() {
 
                     {/* Due Date */}
                     <div style={{ position: "relative" }}>
-                      <button className="sidebar-btn" onClick={() => setShowDatePicker(!showDatePicker)}>
+                      <button className="sidebar-btn" onClick={() => { const opening = !showDatePicker; closeModalPickers(); setShowDatePicker(opening); }}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
@@ -1702,7 +1702,7 @@ export default function Board() {
 
                     {/* Move to list */}
                     <div style={{ position: "relative" }}>
-                      <button className="sidebar-btn" onClick={() => setShowMovePicker(!showMovePicker)}>
+                      <button className="sidebar-btn" onClick={() => { const opening = !showMovePicker; closeModalPickers(); setShowMovePicker(opening); }}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
                         </svg>

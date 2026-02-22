@@ -4,7 +4,6 @@ import React, { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/Toast";
-import PasswordStrength from "@/components/PasswordStrength";
 
 function ResetPasswordInner() {
   const [password, setPassword] = useState("");
@@ -86,7 +85,6 @@ function ResetPasswordInner() {
               )}
             </button>
           </div>
-          <PasswordStrength password={password} />
         </div>
         <button type="submit" className="auth-submit" disabled={submitting}>
           {submitting ? <span className="auth-spinner" /> : "Reset password"}
