@@ -1606,6 +1606,7 @@ export default function Board() {
               {/* Body */}
               <div className="gantt-body" style={{ width: labelWidth + totalWidth }}>
                 {ganttLists.map(({ listId, listTitle, cards }) => {
+                  if (selectedLabels.size > 0 && cards.length === 0) return null;
                   const rangeStartTime = rangeStart.getTime();
                   return (
                   <div key={listId} className="gantt-list-group">
@@ -1758,6 +1759,7 @@ export default function Board() {
         <div className="board-lists">
           {board.lists.map((list, idx) => {
             const visibleCards = getVisibleCardIds(list.cardIds);
+            if (selectedLabels.size > 0 && visibleCards.length === 0) return null;
             const isListFocused = focusPos?.listIdx === idx && focusPos?.cardIdx === -1;
             return (
             <div key={list.id} style={{ display: "flex", alignItems: "flex-start" }}>
