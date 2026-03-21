@@ -149,13 +149,21 @@ export default function Board() {
             if (serverBoard) setBoard(serverBoard);
           });
         }
+        if (!res.ok) {
+          console.error("Save failed:", res.status);
+          alert("Failed to save the board. You may not have permission to edit it.");
+          return;
+        }
         // Update local version from response
         return res.json().then(data => {
           if (data?.version) {
             setBoard(prev => prev.version < data.version ? { ...prev, version: data.version } : prev);
           }
         });
-      }).catch(() => {});
+      }).catch(() => {
+        console.error("Save failed: network error");
+        alert("Failed to save the board. Please check your connection.");
+      });
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
   }, [board, loaded, clientId]);
@@ -191,20 +199,34 @@ export default function Board() {
   const deleteBoard = useCallback((id: string) => {
     if (!confirm("Delete this project? This cannot be undone.")) return;
     fetch(`/api/board/${id}`, { method: "DELETE" })
-      .then(() => {
+      .then(res => {
+        if (!res.ok) {
+          return res.json().then(data => {
+            alert(data?.error || "Failed to delete the board.");
+          }).catch(() => {
+            alert("Failed to delete the board.");
+          });
+        }
         setSavedBoards(prev => prev.filter(b => b.id !== id));
         // If deleting the current board, switch to another or create new
         if (id === board.id) {
-          fetch("/api/board").then(r => r.json()).then(list => {
-            if (list?.length > 0) {
-              loadBoard(list[0].id);
-            } else {
+          fetch("/api/board")
+            .then(r => r.json())
+            .then(list => {
+              if (list?.length > 0) {
+                loadBoard(list[0].id);
+              } else {
+                createNewBoard();
+              }
+            })
+            .catch(() => {
               createNewBoard();
-            }
-          });
+            });
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        alert("Failed to delete the board. Please check your connection.");
+      });
   }, [board.id, loadBoard, createNewBoard]);
 
   // ===================== SHARING =====================
