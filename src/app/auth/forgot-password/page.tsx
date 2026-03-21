@@ -8,6 +8,7 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
+  const [resetLink, setResetLink] = useState("");
   const { toast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,6 +25,7 @@ export default function ForgotPasswordPage() {
         toast(data.error || "Something went wrong.", "error");
       } else {
         setSent(true);
+        if (data.resetLink) setResetLink(data.resetLink);
       }
     } catch {
       toast("Something went wrong. Please try again.", "error");
@@ -34,12 +36,27 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <>
-        <h2 className="auth-title">Check your email</h2>
-        <p className="auth-description">
-          If an account with that email exists, we&apos;ve sent a password reset link.
-          Check your inbox and spam folder.
-        </p>
-        <Link href="/auth/login" className="auth-submit" style={{ display: "block", textAlign: "center", textDecoration: "none", marginTop: 16 }}>
+        <h2 className="auth-title">{resetLink ? "Reset link generated" : "Check your email"}</h2>
+        {resetLink ? (
+          <>
+            <p className="auth-description">
+              Click the link below to reset your password:
+            </p>
+            <a
+              href={resetLink}
+              className="auth-submit"
+              style={{ display: "block", textAlign: "center", textDecoration: "none", marginTop: 16 }}
+            >
+              Reset password
+            </a>
+          </>
+        ) : (
+          <p className="auth-description">
+            If an account with that email exists, we&apos;ve sent a password reset link.
+            Check your inbox and spam folder.
+          </p>
+        )}
+        <Link href="/auth/login" className="auth-submit" style={{ display: "block", textAlign: "center", textDecoration: "none", marginTop: 16, background: "transparent", color: "var(--brand)", border: "1px solid var(--brand)" }}>
           Back to sign in
         </Link>
       </>

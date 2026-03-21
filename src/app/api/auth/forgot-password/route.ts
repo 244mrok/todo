@@ -15,22 +15,25 @@ export async function POST(req: Request) {
   try {
     const { email } = await req.json();
 
-    // Always return success to prevent email enumeration
-    const successResponse = NextResponse.json({
+    const noMatchResponse = NextResponse.json({
       message:
-        "If an account with that email exists, we've sent a password reset link.",
+        "If an account with that email exists, a reset link has been generated.",
     });
 
-    if (!email) return successResponse;
+    if (!email) return noMatchResponse;
 
     const user = await getUserByEmail(email);
-    if (!user) return successResponse;
+    if (!user) return noMatchResponse;
 
     const token = await createEmailToken(user.id, "reset");
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-    console.log(`[Password Reset] Link: ${baseUrl}/auth/reset-password?token=${token}`);
+    const resetLink = `${baseUrl}/auth/reset-password?token=${token}`;
+    console.log(`[Password Reset] Link: ${resetLink}`);
 
-    return successResponse;
+    return NextResponse.json({
+      message: "Reset link generated.",
+      resetLink,
+    });
   } catch (error) {
     console.error("[ForgotPassword]", error);
     return NextResponse.json(
