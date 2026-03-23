@@ -60,14 +60,19 @@ export async function seedDemoBoards(): Promise<void> {
   await initSchema();
   const db = getDb();
 
+  // Only seed if the boards table is completely empty
+  const count = await db.execute("SELECT COUNT(*) as cnt FROM boards");
+  const boardCount = Number(count.rows[0].cnt);
+  if (boardCount > 0) {
+    demoSeeded = true;
+    return;
+  }
+
   for (const board of DEMO_BOARDS) {
-    const existing = await db.execute({ sql: "SELECT id FROM boards WHERE id = ?", args: [board.id] });
-    if (existing.rows.length === 0) {
-      await db.execute({
-        sql: "INSERT INTO boards (id, data, owner_id, updated_at) VALUES (?, ?, ?, datetime('now'))",
-        args: [board.id, JSON.stringify({ ...board, version: 1, labelNames: board.labelNames || {} }), null],
-      });
-    }
+    await db.execute({
+      sql: "INSERT INTO boards (id, data, owner_id, updated_at) VALUES (?, ?, ?, datetime('now'))",
+      args: [board.id, JSON.stringify({ ...board, version: 1, labelNames: board.labelNames || {} }), null],
+    });
   }
 
   demoSeeded = true;
