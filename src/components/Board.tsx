@@ -132,41 +132,65 @@ export default function Board() {
   }, []);
 
   // Save board to file DB on changes (debounced 500ms), only when dirty
+  const saving = useRef(false);
+  const pendingSave = useRef(false);
+
+  const doSave = useCallback((boardToSave: BoardData) => {
+    if (saving.current) {
+      pendingSave.current = true;
+      return;
+    }
+    saving.current = true;
+    dirty.current = false;
+    localStorage.setItem("last-board-id", boardToSave.id);
+    fetch(`/api/board/${boardToSave.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "X-Client-Id": clientId },
+      body: JSON.stringify(boardToSave),
+    }).then(res => {
+      if (res.status === 409) {
+        // Version conflict — merge: keep local cards/lists, adopt server version
+        return res.json().then(({ serverBoard }) => {
+          if (serverBoard) {
+            setBoard(prev => ({ ...prev, version: serverBoard.version }));
+            dirty.current = true;
+          }
+        });
+      }
+      if (!res.ok) {
+        console.error("Save failed:", res.status);
+        return;
+      }
+      return res.json().then(data => {
+        if (data?.version) {
+          setBoard(prev => prev.version < data.version ? { ...prev, version: data.version } : prev);
+        }
+      });
+    }).catch(() => {
+      console.error("Save failed: network error");
+    }).finally(() => {
+      saving.current = false;
+      if (pendingSave.current || dirty.current) {
+        pendingSave.current = false;
+        // Re-read latest board state via functional setter to trigger retry
+        setBoard(prev => {
+          if (dirty.current) {
+            setTimeout(() => doSave(prev), 100);
+          }
+          return prev;
+        });
+      }
+    });
+  }, [clientId]);
+
   useEffect(() => {
     if (!loaded || !dirty.current) return;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      dirty.current = false;
-      localStorage.setItem("last-board-id", board.id);
-      fetch(`/api/board/${board.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", "X-Client-Id": clientId },
-        body: JSON.stringify(board),
-      }).then(res => {
-        if (res.status === 409) {
-          // Version conflict — adopt server state
-          return res.json().then(({ serverBoard }) => {
-            if (serverBoard) setBoard(serverBoard);
-          });
-        }
-        if (!res.ok) {
-          console.error("Save failed:", res.status);
-          alert("Failed to save the board. You may not have permission to edit it.");
-          return;
-        }
-        // Update local version from response
-        return res.json().then(data => {
-          if (data?.version) {
-            setBoard(prev => prev.version < data.version ? { ...prev, version: data.version } : prev);
-          }
-        });
-      }).catch(() => {
-        console.error("Save failed: network error");
-        alert("Failed to save the board. Please check your connection.");
-      });
+      doSave(board);
     }, 500);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [board, loaded, clientId]);
+  }, [board, loaded, doSave]);
 
   const loadBoardList = useCallback(() => {
     fetch("/api/board")
