@@ -1,6 +1,4 @@
-import fs from "fs";
-import path from "path";
-import { BOARDS_DIR } from "./db";
+// Demo board data — used by board-repo.ts for seeding
 
 // ─────────────────────────────────────────
 // Board 1: Product Launch
@@ -720,14 +718,3 @@ const salesPipelineJP = {
 
 export const DEMO_BOARDS = [productLaunch, salesPipeline, salesPipelineJP];
 
-export function seedDemoBoards() {
-  if (!fs.existsSync(BOARDS_DIR)) {
-    fs.mkdirSync(BOARDS_DIR, { recursive: true });
-  }
-  for (const board of DEMO_BOARDS) {
-    const filePath = path.join(BOARDS_DIR, `${board.id}.json`);
-    if (!fs.existsSync(filePath)) {
-      fs.writeFileSync(filePath, JSON.stringify(board, null, 2), "utf-8");
-    }
-  }
-}

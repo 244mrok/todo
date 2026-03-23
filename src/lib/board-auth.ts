@@ -1,6 +1,4 @@
-import fs from "fs";
-import path from "path";
-import { BOARDS_DIR } from "./db";
+import { getBoard } from "./board-repo";
 import type { BoardData } from "@/types/board";
 
 export interface BoardAccessResult {
@@ -14,18 +12,11 @@ export interface BoardAccessResult {
  * Public boards (ownerId === null) are accessible to all.
  * Private boards require the user to be the owner or an editor.
  */
-export function checkBoardAccess(boardId: string, userId: string): BoardAccessResult {
-  const filePath = path.join(BOARDS_DIR, `${boardId}.json`);
-  if (!fs.existsSync(filePath)) {
+export async function checkBoardAccess(boardId: string, userId: string): Promise<BoardAccessResult> {
+  const board = await getBoard(boardId);
+  if (!board) {
     return { authorized: false, isOwner: false, board: null };
   }
-
-  const raw = fs.readFileSync(filePath, "utf-8");
-  const board: BoardData = JSON.parse(raw);
-
-  // Backfill auth fields for legacy boards
-  if (board.ownerId === undefined) board.ownerId = null;
-  if (!board.editors) board.editors = [];
 
   // Public board — accessible to all
   if (board.ownerId === null) {

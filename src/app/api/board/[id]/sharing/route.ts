@@ -1,16 +1,8 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
 import { getSession } from "@/lib/session";
-import { BOARDS_DIR } from "@/lib/db";
 import { checkBoardAccess, canManageSharing } from "@/lib/board-auth";
 import { getUserByEmail, getUserById } from "@/lib/auth";
-
-function ensureDir() {
-  if (!fs.existsSync(BOARDS_DIR)) {
-    fs.mkdirSync(BOARDS_DIR, { recursive: true });
-  }
-}
+import { saveBoard } from "@/lib/board-repo";
 
 // GET /api/board/[id]/sharing — get sharing info (owner only)
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -19,10 +11,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
 
-  ensureDir();
   const { id } = await params;
 
-  const { authorized, board } = checkBoardAccess(id, session.userId);
+  const { authorized, board } = await checkBoardAccess(id, session.userId);
   if (!authorized || !board) {
     return NextResponse.json({ error: "Access denied." }, { status: 403 });
   }
@@ -53,7 +44,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
   }
 
-  ensureDir();
   const { id } = await params;
   const body = await req.json();
   const { action, email } = body as { action: string; email: string };
@@ -62,8 +52,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: "Missing action or email." }, { status: 400 });
   }
 
-  const filePath = path.join(BOARDS_DIR, `${id}.json`);
-  const { authorized, board } = checkBoardAccess(id, session.userId);
+  const { authorized, board } = await checkBoardAccess(id, session.userId);
   if (!authorized || !board) {
     return NextResponse.json({ error: "Access denied." }, { status: 403 });
   }
@@ -94,8 +83,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: "Invalid action. Use 'add' or 'remove'." }, { status: 400 });
   }
 
-  // Write updated board
-  fs.writeFileSync(filePath, JSON.stringify(board, null, 2), "utf-8");
+  // Write updated board to DB
+  await saveBoard(board);
 
   // Resolve updated editor list
   const editors: { id: string; email: string; name: string }[] = [];

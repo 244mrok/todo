@@ -13,7 +13,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const { id: boardId } = await params;
 
   // Access check
-  const { authorized } = checkBoardAccess(boardId, session.userId);
+  const { authorized } = await checkBoardAccess(boardId, session.userId);
   if (!authorized) {
     return new Response("Access denied", { status: 403 });
   }

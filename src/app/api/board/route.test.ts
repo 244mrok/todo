@@ -1,53 +1,42 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock fs before importing the route
-vi.mock("fs", () => {
-  return {
-    default: {
-      existsSync: vi.fn(),
-      mkdirSync: vi.fn(),
-      readdirSync: vi.fn(),
-      readFileSync: vi.fn(),
-      writeFileSync: vi.fn(),
-    },
-  };
-});
-
 vi.mock("@/lib/session", () => ({
   getSession: vi.fn(),
 }));
 
-vi.mock("@/lib/demo-boards", () => ({
+vi.mock("@/lib/board-repo", () => ({
+  listBoardsForUser: vi.fn(),
   seedDemoBoards: vi.fn(),
 }));
 
-import fs from "fs";
 import { GET } from "./route";
 import { getSession } from "@/lib/session";
+import { listBoardsForUser, seedDemoBoards } from "@/lib/board-repo";
 
-const mockFs = vi.mocked(fs);
 const mockGetSession = vi.mocked(getSession);
+const mockListBoardsForUser = vi.mocked(listBoardsForUser);
+const mockSeedDemoBoards = vi.mocked(seedDemoBoards);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockFs.existsSync.mockReturnValue(true);
   mockGetSession.mockResolvedValue({ userId: "user-1", email: "test@test.com" });
+  mockSeedDemoBoards.mockResolvedValue(undefined);
 });
 
 describe("GET /api/board", () => {
-  it("returns empty array when no board files exist", async () => {
-    mockFs.readdirSync.mockReturnValue([] as unknown as ReturnType<typeof fs.readdirSync>);
+  it("returns empty array when no boards exist", async () => {
+    mockListBoardsForUser.mockResolvedValue([]);
 
     const response = await GET();
     const data = await response.json();
     expect(data).toEqual([]);
   });
 
-  it("returns {id, name, ownerId, isOwner} for each board file", async () => {
-    mockFs.readdirSync.mockReturnValue(["board-1.json", "board-2.json"] as unknown as ReturnType<typeof fs.readdirSync>);
-    mockFs.readFileSync
-      .mockReturnValueOnce(JSON.stringify({ id: "board-1", name: "Project A", ownerId: null, editors: [] }))
-      .mockReturnValueOnce(JSON.stringify({ id: "board-2", name: "Project B", ownerId: "user-1", editors: [] }));
+  it("returns {id, name, ownerId, isOwner} for each board", async () => {
+    mockListBoardsForUser.mockResolvedValue([
+      { id: "board-1", name: "Project A", ownerId: null, isOwner: false },
+      { id: "board-2", name: "Project B", ownerId: "user-1", isOwner: true },
+    ]);
 
     const response = await GET();
     const data = await response.json();
@@ -57,30 +46,26 @@ describe("GET /api/board", () => {
     ]);
   });
 
-  it("uses 'Untitled' when board has no name", async () => {
-    mockFs.readdirSync.mockReturnValue(["board-1.json"] as unknown as ReturnType<typeof fs.readdirSync>);
-    mockFs.readFileSync.mockReturnValue(JSON.stringify({ id: "board-1", name: "", ownerId: null, editors: [] }));
+  it("seeds demo boards on first call", async () => {
+    mockListBoardsForUser.mockResolvedValue([]);
 
-    const response = await GET();
-    const data = await response.json();
-    expect(data).toEqual([{ id: "board-1", name: "Untitled", ownerId: null, isOwner: false }]);
+    await GET();
+    expect(mockSeedDemoBoards).toHaveBeenCalled();
   });
 
-  it("ignores non-json files", async () => {
-    mockFs.readdirSync.mockReturnValue(["board-1.json", ".DS_Store", "readme.txt"] as unknown as ReturnType<typeof fs.readdirSync>);
-    mockFs.readFileSync.mockReturnValue(JSON.stringify({ id: "board-1", name: "Test", ownerId: null, editors: [] }));
+  it("returns 401 when not authenticated", async () => {
+    mockGetSession.mockResolvedValue(null);
 
     const response = await GET();
-    const data = await response.json();
-    expect(data).toHaveLength(1);
+    expect(response.status).toBe(401);
+    expect(mockListBoardsForUser).not.toHaveBeenCalled();
   });
 
-  it("filters boards by access", async () => {
-    mockFs.readdirSync.mockReturnValue(["board-1.json", "board-2.json", "board-3.json"] as unknown as ReturnType<typeof fs.readdirSync>);
-    mockFs.readFileSync
-      .mockReturnValueOnce(JSON.stringify({ id: "board-1", name: "Public", ownerId: null, editors: [] }))
-      .mockReturnValueOnce(JSON.stringify({ id: "board-2", name: "Other User", ownerId: "other-user", editors: [] }))
-      .mockReturnValueOnce(JSON.stringify({ id: "board-3", name: "Shared", ownerId: "other-user", editors: ["user-1"] }));
+  it("filters boards by user access", async () => {
+    mockListBoardsForUser.mockResolvedValue([
+      { id: "board-1", name: "Public", ownerId: null, isOwner: false },
+      { id: "board-3", name: "Shared", ownerId: "other-user", isOwner: false },
+    ]);
 
     const response = await GET();
     const data = await response.json();

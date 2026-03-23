@@ -1,12 +1,6 @@
 import { createClient, type Client } from "@libsql/client";
 import path from "path";
 
-const isVercel = !!process.env.VERCEL;
-
-export const BOARDS_DIR = isVercel
-  ? "/tmp/boards"
-  : path.join(process.cwd(), "data", "boards");
-
 let client: Client | null = null;
 
 export function getDb(): Client {
@@ -44,6 +38,12 @@ const SCHEMA_STATEMENTS = [
     expires_at TEXT NOT NULL,
     used INTEGER NOT NULL DEFAULT 0,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )`,
+  `CREATE TABLE IF NOT EXISTS boards (
+    id TEXT PRIMARY KEY,
+    data TEXT NOT NULL,
+    owner_id TEXT,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
 ];
 
