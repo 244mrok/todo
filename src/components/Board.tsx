@@ -2320,11 +2320,17 @@ export default function Board() {
                                 <button
                                   className="label-picker-toggle"
                                   onClick={() => {
-                                    updateCard({
-                                      ...editingCard,
-                                      labels: isSelected
-                                        ? editingCard.labels.filter(l => l !== colorKey)
-                                        : [...editingCard.labels, colorKey],
+                                    setEditingCard(prev => {
+                                      if (!prev) return prev;
+                                      const wasSelected = prev.labels.includes(colorKey);
+                                      const updated = {
+                                        ...prev,
+                                        labels: wasSelected
+                                          ? prev.labels.filter(l => l !== colorKey)
+                                          : [...prev.labels, colorKey],
+                                      };
+                                      setBoardAndSave(b => ({ ...b, cards: { ...b.cards, [updated.id]: updated } }));
+                                      return updated;
                                     });
                                   }}
                                 >
