@@ -14,9 +14,18 @@ export function useBoardSync({ boardId, onRemoteUpdate, onDeleted }: UseBoardSyn
   const eventSourceRef = useRef<EventSource | null>(null);
   const retryDelay = useRef(1000);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const onRemoteUpdateRef = useRef(onRemoteUpdate);
+  const onDeletedRef = useRef(onDeleted);
+
+  // Keep refs in sync to avoid re-triggering useEffect
+  onRemoteUpdateRef.current = onRemoteUpdate;
+  onDeletedRef.current = onDeleted;
 
   useEffect(() => {
     if (!boardId) return;
+
+    let sseConnected = false;
 
     function connect() {
       // Clean up existing connection
@@ -29,35 +38,35 @@ export function useBoardSync({ boardId, onRemoteUpdate, onDeleted }: UseBoardSyn
       eventSourceRef.current = es;
 
       es.addEventListener("connected", () => {
-        retryDelay.current = 1000; // Reset backoff on successful connection
+        retryDelay.current = 1000;
+        sseConnected = true;
       });
 
       es.addEventListener("board-updated", (e) => {
         try {
           const board: BoardData = JSON.parse(e.data);
-          onRemoteUpdate(board);
+          onRemoteUpdateRef.current(board);
         } catch {
           // Ignore malformed data
         }
       });
 
       es.addEventListener("board-deleted", () => {
-        onDeleted();
+        onDeletedRef.current();
       });
 
       es.onerror = () => {
         es.close();
         eventSourceRef.current = null;
+        sseConnected = false;
 
-        // Exponential backoff reconnection: 1s, 2s, 4s, ... max 30s
         const delay = retryDelay.current;
         retryDelay.current = Math.min(delay * 2, 30_000);
 
         retryTimer.current = setTimeout(() => {
-          // Refetch latest board state on reconnect to catch missed updates
           fetch(`/api/board/${boardId}`)
             .then(res => { if (res.ok) return res.json(); })
-            .then(data => { if (data) onRemoteUpdate(data); })
+            .then(data => { if (data) onRemoteUpdateRef.current(data); })
             .catch(() => {});
           connect();
         }, delay);
@@ -65,6 +74,16 @@ export function useBoardSync({ boardId, onRemoteUpdate, onDeleted }: UseBoardSyn
     }
 
     connect();
+
+    // Polling fallback: on serverless platforms (Vercel), SSE broadcast
+    // only works within the same instance. Poll every 5s to catch updates
+    // from other instances that SSE missed.
+    pollTimer.current = setInterval(() => {
+      fetch(`/api/board/${boardId}`)
+        .then(res => { if (res.ok) return res.json(); })
+        .then(data => { if (data) onRemoteUpdateRef.current(data); })
+        .catch(() => {});
+    }, 5000);
 
     return () => {
       if (eventSourceRef.current) {
@@ -75,8 +94,12 @@ export function useBoardSync({ boardId, onRemoteUpdate, onDeleted }: UseBoardSyn
         clearTimeout(retryTimer.current);
         retryTimer.current = null;
       }
+      if (pollTimer.current) {
+        clearInterval(pollTimer.current);
+        pollTimer.current = null;
+      }
     };
-  }, [boardId, clientId, onRemoteUpdate, onDeleted]);
+  }, [boardId, clientId]);
 
   return { clientId };
 }

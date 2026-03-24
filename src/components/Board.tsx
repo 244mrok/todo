@@ -80,8 +80,16 @@ export default function Board() {
 
   // Real-time sync via SSE
   const handleRemoteUpdate = useCallback((remoteBoard: BoardData) => {
-    if (dirty.current) return; // Don't overwrite mid-edit
-    setBoard(remoteBoard);
+    setBoard(prev => {
+      // Only apply if remote is newer
+      if (remoteBoard.version <= prev.version) return prev;
+      // If editing, adopt the higher version but keep local data
+      // so the next save will push our changes
+      if (dirty.current) {
+        return { ...prev, version: remoteBoard.version };
+      }
+      return remoteBoard;
+    });
   }, []);
 
   const handleRemoteDeleted = useCallback(() => {
